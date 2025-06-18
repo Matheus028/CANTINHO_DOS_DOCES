@@ -3,7 +3,7 @@ from app import app, db
 from models import (
     Receita, IngredienteReceita, EstoqueInsumo, EstoqueBala, 
     Producao, Venda, ContasReceber, LucrosPendentes, CapitalGiro, 
-    PrecoVenda, init_default_data
+    PrecoVenda, TransacaoFinanceira, ContasPagar, init_default_data
 )
 from datetime import datetime, date
 import logging
@@ -506,16 +506,72 @@ def financeiro():
                     db.session.commit()
                     flash('Lucro marcado como pago', 'success')
             
-            elif acao == 'atualizar_capital':
-                novo_valor = float(request.form.get('capital'))
+            elif acao == 'adicionar_aporte':
+                valor = float(request.form.get('valor'))
+                descricao = request.form.get('descricao')
+                
+                # Update capital
                 capital = CapitalGiro.query.first()
                 if not capital:
-                    capital = CapitalGiro(valor=novo_valor)
+                    capital = CapitalGiro(valor=valor)
                     db.session.add(capital)
                 else:
-                    capital.valor = novo_valor
+                    capital.valor += valor
+                
+                # Record transaction
+                transacao = TransacaoFinanceira(
+                    tipo='Aporte',
+                    descricao=descricao,
+                    valor=valor
+                )
+                db.session.add(transacao)
                 db.session.commit()
-                flash('Capital de giro atualizado', 'success')
+                flash(f'Aporte de R$ {valor:.2f} adicionado', 'success')
+                
+            elif acao == 'compra_credito':
+                valor = float(request.form.get('valor'))
+                descricao = request.form.get('descricao')
+                data_vencimento_str = request.form.get('data_vencimento')
+                
+                # Create payable account
+                data_vencimento = None
+                if data_vencimento_str:
+                    data_vencimento = datetime.strptime(data_vencimento_str, '%Y-%m-%d').date()
+                
+                conta = ContasPagar(
+                    descricao=descricao,
+                    valor=valor,
+                    data_vencimento=data_vencimento,
+                    tipo='Compra no crédito',
+                    status='Pendente'
+                )
+                db.session.add(conta)
+                
+                # Record transaction
+                transacao = TransacaoFinanceira(
+                    tipo='Compra no crédito',
+                    descricao=descricao,
+                    valor=-valor  # Negative because it's an expense
+                )
+                db.session.add(transacao)
+                db.session.commit()
+                flash(f'Compra no crédito de R$ {valor:.2f} registrada', 'success')
+                
+            elif acao == 'adicionar_lucro':
+                socia = request.form.get('socia')
+                descricao = request.form.get('descricao')
+                valor = float(request.form.get('valor'))
+                
+                lucro = LucrosPendentes(
+                    socia=socia,
+                    descricao=descricao,
+                    valor=valor,
+                    origem='Adição Manual',
+                    status='Pendente'
+                )
+                db.session.add(lucro)
+                db.session.commit()
+                flash(f'Lucro de R$ {valor:.2f} adicionado para {socia}', 'success')
                 
         except Exception as e:
             db.session.rollback()
@@ -528,19 +584,136 @@ def financeiro():
     capital = CapitalGiro.query.first()
     lucros_pendentes = LucrosPendentes.query.filter_by(status='Pendente').all()
     contas_receber = ContasReceber.query.filter_by(status='Pendente').all()
+    contas_pagar = ContasPagar.query.filter_by(status='Pendente').all()
+    transacoes = TransacaoFinanceira.query.order_by(TransacaoFinanceira.data_transacao.desc()).limit(10).all()
     
     # Group profits by partner
-    lucros_por_socia = {}
+    lucros_pendentes_dict = {}
     for lucro in lucros_pendentes:
-        if lucro.socia not in lucros_por_socia:
-            lucros_por_socia[lucro.socia] = []
-        lucros_por_socia[lucro.socia].append(lucro)
+        if lucro.socia not in lucros_pendentes_dict:
+            lucros_pendentes_dict[lucro.socia] = 0
+        lucros_pendentes_dict[lucro.socia] += lucro.valor
     
     return render_template('financeiro.html',
                          capital=capital,
-                         lucros_por_socia=lucros_por_socia,
+                         lucros_pendentes=lucros_pendentes_dict,
                          contas_receber=contas_receber,
+                         contas_pagar=contas_pagar,
+                         transacoes=transacoes,
                          socias=SOCIAS)
+
+@app.route('/financeiro/pagar/<int:conta_id>', methods=['POST'])
+def pagar_conta(conta_id):
+    """Pay a bill"""
+    try:
+        conta = ContasPagar.query.get(conta_id)
+        if not conta:
+            return jsonify({'success': False, 'message': 'Conta não encontrada'})
+        
+        if conta.status == 'Pago':
+            return jsonify({'success': False, 'message': 'Conta já foi paga'})
+        
+        # Update account status
+        conta.status = 'Pago'
+        conta.data_pagamento = datetime.utcnow()
+        
+        # Update capital
+        capital = CapitalGiro.query.first()
+        if capital:
+            capital.valor -= conta.valor
+        
+        # Record transaction
+        transacao = TransacaoFinanceira(
+            tipo='Pagamento',
+            descricao=f'Pagamento: {conta.descricao}',
+            valor=-conta.valor
+        )
+        db.session.add(transacao)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error paying bill: {e}")
+        return jsonify({'success': False, 'message': 'Erro ao processar pagamento'})
+
+@app.route('/configuracoes-precos', methods=['GET', 'POST'])
+def configuracoes_precos():
+    """Price configuration management"""
+    if request.method == 'POST':
+        try:
+            acao = request.form.get('acao')
+            
+            if acao == 'salvar_preco':
+                canal = request.form.get('canal')
+                tipo_pacote = request.form.get('tipo_pacote')
+                qtd_balas = int(request.form.get('qtd_balas'))
+                preco = float(request.form.get('preco'))
+                
+                # Check if price configuration already exists
+                preco_existente = PrecoVenda.query.filter_by(canal=canal, tipo_pacote=tipo_pacote).first()
+                
+                if preco_existente:
+                    preco_existente.quantidade_balas = qtd_balas
+                    preco_existente.preco = preco
+                    preco_existente.updated_at = datetime.utcnow()
+                    flash('Preço atualizado com sucesso', 'success')
+                else:
+                    novo_preco = PrecoVenda(
+                        canal=canal,
+                        tipo_pacote=tipo_pacote,
+                        quantidade_balas=qtd_balas,
+                        preco=preco,
+                        ativo=True
+                    )
+                    db.session.add(novo_preco)
+                    flash('Novo preço adicionado com sucesso', 'success')
+                
+                db.session.commit()
+                
+            elif acao == 'atualizar_preco':
+                preco_id = int(request.form.get('preco_id'))
+                qtd_balas = int(request.form.get('qtd_balas'))
+                preco = float(request.form.get('preco'))
+                
+                preco_obj = PrecoVenda.query.get(preco_id)
+                if preco_obj:
+                    preco_obj.quantidade_balas = qtd_balas
+                    preco_obj.preco = preco
+                    preco_obj.updated_at = datetime.utcnow()
+                    db.session.commit()
+                    flash('Preço atualizado com sucesso', 'success')
+                
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error in price configuration: {e}")
+            flash('Erro ao salvar configuração de preço', 'error')
+        
+        return redirect(url_for('configuracoes_precos'))
+    
+    # GET request
+    precos_atuais = PrecoVenda.query.order_by(PrecoVenda.canal, PrecoVenda.tipo_pacote).all()
+    
+    return render_template('configuracoes_precos.html', precos_atuais=precos_atuais)
+
+@app.route('/configuracoes-precos/toggle/<int:preco_id>', methods=['POST'])
+def toggle_preco(preco_id):
+    """Toggle price active status"""
+    try:
+        preco = PrecoVenda.query.get(preco_id)
+        if not preco:
+            return jsonify({'success': False, 'message': 'Preço não encontrado'})
+        
+        preco.ativo = not preco.ativo
+        preco.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        status = 'ativado' if preco.ativo else 'desativado'
+        return jsonify({'success': True, 'message': f'Preço {status} com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error toggling price: {e}")
+        return jsonify({'success': False, 'message': 'Erro ao alterar status'})
 
 @app.route('/estoque', methods=['GET', 'POST'])
 def estoque():
