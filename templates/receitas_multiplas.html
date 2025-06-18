@@ -155,7 +155,7 @@
                     </div>
                     <div class="col-md-3">
                         <div class="text-center">
-                            {% set total_ingredientes = receitas|sum(attribute='ingredientes')|length if receitas else 0 %}
+                            {% set total_ingredientes = receitas|map(attribute='ingredientes')|map('length')|sum if receitas else 0 %}
                             <h4 class="text-info">{{ total_ingredientes }}</h4>
                             <small class="text-muted">Total Ingredientes</small>
                         </div>

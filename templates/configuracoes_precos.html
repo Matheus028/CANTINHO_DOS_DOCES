@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações de Preços - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-cog"></i> Configurações de Preços
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column - Gerenciar Preços por Canal -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-tags"></i> Gerenciar Preços por Canal
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Atenção:</strong> Alterar os preços afetará apenas as próximas vendas. Vendas já registradas não são alteradas.
+                </div>
+                
+                <!-- Adicionar/Editar Configuração de Preço -->
+                <h6>Adicionar/Editar Configuração de Preço</h6>
+                <form method="POST" action="{{ url_for('configuracoes_precos') }}">
+                    <input type="hidden" name="acao" value="salvar_preco">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Canal de Venda</label>
+                            <select name="canal" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <option value="ifood">iFood</option>
+                                <option value="presencial">Presencial</option>
+                                <option value="restaurante">Restaurante</option>
+                                <option value="venda_direta">Venda Direta</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo de Pacote</label>
+                            <select name="tipo_pacote" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <option value="pacote_3">Pacote 3</option>
+                                <option value="pacote_5">Pacote 5</option>
+                                <option value="pacote_6">Pacote 6</option>
+                                <option value="pacote_10">Pacote 10</option>
+                                <option value="preco_unitario">Preço Unitário</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Qtd. Balas</label>
+                            <input type="number" name="qtd_balas" class="form-control" min="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Preço (R$)</label>
+                            <input type="number" name="preco" class="form-control" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-save"></i> Salvar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <!-- Configurações Atuais -->
+                <h6>Configurações Atuais</h6>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Canal</th>
+                                <th>Tipo</th>
+                                <th>Qtd. Balas</th>
+                                <th>Preço</th>
+                                <th>Última Atualização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for preco in precos_atuais %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if preco.canal == 'ifood' %}warning{% elif preco.canal == 'presencial' %}success{% elif preco.canal == 'restaurante' %}info{% else %}secondary{% endif %}">
+                                        {{ preco.canal|title }}
+                                    </span>
+                                </td>
+                                <td>{{ preco.tipo_pacote.replace('_', ' ')|title }}</td>
+                                <td>{{ preco.quantidade_balas }}</td>
+                                <td>R$ {{ "%.2f"|format(preco.preco) }}</td>
+                                <td>{{ preco.updated_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editarPreco({{ preco.id }}, '{{ preco.canal }}', '{{ preco.tipo_pacote }}', {{ preco.quantidade_balas }}, {{ preco.preco }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-{% if preco.ativo %}warning{% else %}success{% endif %}" 
+                                                onclick="togglePreco({{ preco.id }}, {{ preco.ativo|lower }})">
+                                            <i class="fas fa-{% if preco.ativo %}pause{% else %}play{% endif %}"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Informações sobre Preços -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações sobre Preços
+            </div>
+            <div class="card-body">
+                <h6>Canais de Venda</h6>
+                <ul class="list-unstyled">
+                    <li><span class="badge bg-warning me-2">iFood</span> Vendas diretas na plataforma iFood</li>
+                    <li><span class="badge bg-success me-2">Presencial</span> Vendas estabelecimentos, preço por unidade</li>
+                    <li><span class="badge bg-info me-2">Restaurante</span> Vendas diretas no restaurante</li>
+                    <li><span class="badge bg-secondary me-2">iFood</span> Vendas diretas via plataforma iFood</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Taxas do iFood</h6>
+                <div class="alert alert-warning">
+                    <small>
+                        O sistema calcula automaticamente as taxas do iFood:
+                        <ul class="mb-0 mt-2">
+                            <li><strong>26.20%</strong> sobre o valor bruto</li>
+                            <li><strong>R$ 1.00</strong> para valores < R$ 20.00</li>
+                        </ul>
+                    </small>
+                </div>
+                
+                <hr>
+                
+                <h6>Calculadora de Margem</h6>
+                <div class="mb-3">
+                    <label class="form-label">Preço de Venda</label>
+                    <input type="number" class="form-control" id="precoVenda" step="0.01" placeholder="0.00">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Custo por Bala</label>
+                    <input type="number" class="form-control" id="custoBala" step="0.01" value="1.00">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Quantidade de Balas</label>
+                    <input type="number" class="form-control" id="qtdBalas" value="1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Canal</label>
+                    <select class="form-select" id="canalMargem">
+                        <option value="venda_direta">Venda Direta</option>
+                        <option value="ifood">iFood</option>
+                    </select>
+                </div>
+                <button class="btn btn-info w-100" onclick="calcularMargem()">
+                    <i class="fas fa-calculator"></i> Calcular Margem
+                </button>
+                
+                <div id="resultadoMargem" class="mt-3" style="display: none;">
+                    <div class="alert alert-info">
+                        <div><strong>Custo Total:</strong> <span id="custoTotal">R$ 0.00</span></div>
+                        <div><strong>Valor Líquido:</strong> <span id="valorLiquido">R$ 0.00</span></div>
+                        <div><strong>Lucro:</strong> <span id="lucro">R$ 0.00</span></div>
+                        <div><strong>Margem:</strong> <span id="margem">0%</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Preço -->
+<div class="modal fade" id="modalEditarPreco" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Preço</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('configuracoes_precos') }}">
+                <input type="hidden" name="acao" value="atualizar_preco">
+                <input type="hidden" name="preco_id" id="editPrecoId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Canal de Venda</label>
+                        <input type="text" class="form-control" id="editCanal" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Pacote</label>
+                        <input type="text" class="form-control" id="editTipoPacote" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantidade de Balas</label>
+                        <input type="number" name="qtd_balas" class="form-control" id="editQtdBalas" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Preço (R$)</label>
+                        <input type="number" name="preco" class="form-control" id="editPreco" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarPreco(id, canal, tipoPacote, qtdBalas, preco) {
+    document.getElementById('editPrecoId').value = id;
+    document.getElementById('editCanal').value = canal;
+    document.getElementById('editTipoPacote').value = tipoPacote.replace('_', ' ');
+    document.getElementById('editQtdBalas').value = qtdBalas;
+    document.getElementById('editPreco').value = preco.toFixed(2);
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEditarPreco'));
+    modal.show();
+}
+
+function togglePreco(id, ativo) {
+    const acao = ativo ? 'desativar' : 'ativar';
+    if (confirm(`Confirma ${acao} este preço?`)) {
+        fetch(`/configuracoes-precos/toggle/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao alterar status: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erro ao processar solicitação');
+        });
+    }
+}
+
+function calcularMargem() {
+    const precoVenda = parseFloat(document.getElementById('precoVenda').value) || 0;
+    const custoBala = parseFloat(document.getElementById('custoBala').value) || 1.0;
+    const qtdBalas = parseInt(document.getElementById('qtdBalas').value) || 1;
+    const canal = document.getElementById('canalMargem').value;
+    
+    if (precoVenda <= 0) {
+        alert('Informe um preço de venda válido');
+        return;
+    }
+    
+    const custoTotal = custoBala * qtdBalas;
+    let valorLiquido = precoVenda;
+    
+    // Apply iFood taxes if applicable
+    if (canal === 'ifood') {
+        const taxa = precoVenda * 0.262; // 26.20%
+        const taxaAdicional = precoVenda < 20 ? 1.0 : 0;
+        valorLiquido = precoVenda - taxa - taxaAdicional;
+    }
+    
+    const lucro = valorLiquido - custoTotal;
+    const margem = valorLiquido > 0 ? (lucro / valorLiquido) * 100 : 0;
+    
+    // Show results
+    document.getElementById('custoTotal').textContent = `R$ ${custoTotal.toFixed(2)}`;
+    document.getElementById('valorLiquido').textContent = `R$ ${valorLiquido.toFixed(2)}`;
+    document.getElementById('lucro').textContent = `R$ ${lucro.toFixed(2)}`;
+    document.getElementById('margem').textContent = `${margem.toFixed(1)}%`;
+    
+    document.getElementById('resultadoMargem').style.display = 'block';
+}
+</script>
+{% endblock %}

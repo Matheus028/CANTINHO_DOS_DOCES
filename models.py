@@ -126,9 +126,33 @@ class PrecoVenda(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     canal = db.Column(db.String(50), nullable=False)
     tipo_pacote = db.Column(db.String(50), nullable=False)
+    quantidade_balas = db.Column(db.Integer, nullable=False, default=1)
     preco = db.Column(db.Float, nullable=False)
+    ativo = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('canal', 'tipo_pacote', name='uq_canal_pacote'),)
+
+class TransacaoFinanceira(db.Model):
+    __tablename__ = 'transacoes_financeiras'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.String(50), nullable=False)  # Aporte, Compra no crédito, Pagamento, etc.
+    descricao = db.Column(db.String(200), nullable=False)
+    valor = db.Column(db.Float, nullable=False)
+    data_transacao = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ContasPagar(db.Model):
+    __tablename__ = 'contas_pagar'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    descricao = db.Column(db.String(200), nullable=False)
+    valor = db.Column(db.Float, nullable=False)
+    data_vencimento = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(20), default='Pendente')  # Pendente, Pago
+    tipo = db.Column(db.String(50), nullable=True)
+    data_pagamento = db.Column(db.DateTime, nullable=True)
+    criada_em = db.Column(db.DateTime, default=datetime.utcnow)
 
 def init_default_data():
     """Initialize default data for the system"""

@@ -6,48 +6,356 @@
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">
-            <i class="fas fa-wallet"></i> Gestão Financeira
+            <i class="fas fa-chart-line"></i> Painel Financeiro
         </h1>
     </div>
 </div>
 
 <div class="row">
-    <!-- Capital de Giro -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-piggy-bank"></i> Capital de Giro
+    <!-- Left Column - Resumo Financeiro -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-chart-bar"></i> Resumo Financeiro
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('financeiro') }}">
-                    <input type="hidden" name="acao" value="atualizar_capital">
-                    <div class="mb-3">
-                        <label class="form-label">Capital Disponível</label>
-                        <div class="input-group">
-                            <span class="input-group-text">R$</span>
-                            <input type="number" name="capital" class="form-control" 
-                                   value="{{ capital.valor if capital else 0 }}" 
-                                   step="0.01" min="0" required>
+            <div class="card-body p-0">
+                <!-- Capital de Giro -->
+                <div class="p-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">Capital de Giro</small>
+                            <h4 class="mb-0 text-{% if capital and capital.valor >= 0 %}success{% else %}danger{% endif %}">
+                                R$ {{ "%.2f"|format(capital.valor if capital else 0) }}
+                            </h4>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Atualizar Capital
-                    </button>
-                </form>
+                </div>
+                
+                <!-- Lucros Pendentes -->
+                <div class="p-3">
+                    <small class="text-muted">Lucros Pendentes</small>
+                    {% for socia, valor in lucros_pendentes.items() %}
+                    <div class="d-flex justify-content-between mt-2">
+                        <span>{{ socia }}</span>
+                        <span class="text-warning">R$ {{ "%.2f"|format(valor) }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if not lucros_pendentes %}
+                    <div class="text-center text-muted py-2">
+                        <small>Nenhum lucro pendente</small>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
     
-    <!-- Adicionar Lucros -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
+    <!-- Center Column - Contas a Receber (iFood) -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
             <div class="card-header">
-                <i class="fas fa-plus-circle"></i> Adicionar Lucros
+                <i class="fas fa-clock"></i> Contas a Receber (iFood)
+            </div>
+            <div class="card-body text-center">
+                {% if contas_receber %}
+                    {% for conta in contas_receber %}
+                    <div class="mb-2 p-2 border rounded">
+                        <small class="text-muted">{{ conta.fonte }}</small>
+                        <div>R$ {{ "%.2f"|format(conta.valor) }}</div>
+                        <small class="text-muted">{{ conta.data_vencimento.strftime('%d/%m/%Y') }}</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle text-success mb-2" style="font-size: 3rem;"></i>
+                        <p class="text-muted mb-0">Nenhum pagamento pendente do iFood.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Ações Financeiras -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-cogs"></i> Ações Financeiras
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('financeiro') }}">
-                    <input type="hidden" name="acao" value="adicionar_lucro">
+                <!-- Adicionar Aporte -->
+                <button class="btn btn-success w-100 mb-3" data-bs-toggle="modal" data-bs-target="#modalAporte">
+                    <i class="fas fa-plus"></i> Adicionar Aporte
+                </button>
+                
+                <!-- Compra no Crédito -->
+                <button class="btn btn-warning w-100 mb-3" data-bs-toggle="modal" data-bs-target="#modalCompraCredito">
+                    <i class="fas fa-credit-card"></i> Compra no Crédito
+                </button>
+                
+                <!-- Adicionar Lucro -->
+                <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#modalAdicionarLucro">
+                    <i class="fas fa-hand-holding-usd"></i> Adicionar Lucro
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contas a Pagar -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-file-invoice-dollar"></i> Contas a Pagar
+            </div>
+            <div class="card-body">
+                {% if contas_pagar %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Vencimento</th>
+                                <th>Status</th>
+                                <th>Tipo</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conta in contas_pagar %}
+                            <tr>
+                                <td>{{ conta.id }}</td>
+                                <td>{{ conta.descricao }}</td>
+                                <td>R$ {{ "%.2f"|format(conta.valor) }}</td>
+                                <td>{{ conta.data_vencimento.strftime('%Y-%m-%d') if conta.data_vencimento else '-' }}</td>
+                                <td>
+                                    <span class="badge bg-{% if conta.status == 'Pendente' %}warning{% else %}success{% endif %}">
+                                        {{ conta.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ conta.tipo or 'Geral' }}</span>
+                                </td>
+                                <td>
+                                    {% if conta.status == 'Pendente' %}
+                                    <button class="btn btn-sm btn-primary" onclick="pagarConta({{ conta.id }})">
+                                        <i class="fas fa-dollar-sign"></i> Pagar
+                                    </button>
+                                    {% else %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check"></i> Pago
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-receipt text-muted mb-3" style="font-size: 3rem;"></i>
+                    <h5>Nenhuma conta a pagar</h5>
+                    <p class="text-muted">Todas as contas estão em dia!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimas Transações -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history"></i> Últimas Transações
+            </div>
+            <div class="card-body">
+                {% if transacoes %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transacao in transacoes %}
+                            <tr>
+                                <td>{{ transacao.data_transacao.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <span class="badge bg-{% if transacao.tipo == 'Aporte' %}success{% elif transacao.tipo == 'Compra no crédito' %}warning{% else %}info{% endif %}">
+                                        {{ transacao.tipo }}
+                                    </span>
+                                </td>
+                                <td>{{ transacao.descricao }}</td>
+                                <td class="text-{% if transacao.valor > 0 %}success{% else %}danger{% endif %}">
+                                    R$ {{ "%.2f"|format(transacao.valor) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-history text-muted mb-3" style="font-size: 3rem;"></i>
+                    <h5>Nenhuma transação registrada</h5>
+                    <p class="text-muted">As transações aparecerão aqui conforme forem realizadas.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar Aporte -->
+<div class="modal fade" id="modalAporte" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Adicionar Aporte</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('financeiro') }}">
+                <input type="hidden" name="acao" value="adicionar_aporte">
+                <div class="modal-body">
                     <div class="mb-3">
+                        <label class="form-label">Valor do Aporte</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valor" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" name="descricao" class="form-control" 
+                               placeholder="Ex: Aporte inicial para compra de ingredientes" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Adicionar Aporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Compra no Crédito -->
+<div class="modal fade" id="modalCompraCredito" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-credit-card"></i> Compra no Crédito</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('financeiro') }}">
+                <input type="hidden" name="acao" value="compra_credito">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Valor da Compra</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valor" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" name="descricao" class="form-control" 
+                               placeholder="Ex: Compras ingredientes diversos" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data de Vencimento (opcional)</label>
+                        <input type="date" name="data_vencimento" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-credit-card"></i> Registrar Compra
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar Lucro -->
+<div class="modal fade" id="modalAdicionarLucro" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-hand-holding-usd"></i> Adicionar Lucro</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('financeiro') }}">
+                <input type="hidden" name="acao" value="adicionar_lucro">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Sócia</label>
+                        <select name="socia" class="form-select" required>
+                            <option value="">Selecione a sócia...</option>
+                            <option value="Rosangela">Rosangela</option>
+                            <option value="Janira">Janira</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor do Lucro</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valor" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" name="descricao" class="form-control" 
+                               placeholder="Ex: Lucro de vendas do mês" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Adicionar Lucro
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function pagarConta(contaId) {
+    if (confirm('Confirma o pagamento desta conta?')) {
+        fetch(`/financeiro/pagar/${contaId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao pagar conta: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erro ao processar pagamento');
+        });
+    }
+}
+</script>
                         <label class="form-label">Sócia</label>
                         <select name="socia" class="form-select" required>
                             <option value="">Selecione...</option>
