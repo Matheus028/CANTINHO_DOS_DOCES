@@ -62,7 +62,7 @@
                             <div class="col-md-2">
                                 <label class="form-label">&nbsp;</label>
                                 <button type="button" class="btn btn-outline-danger form-control" 
-                                        onclick="confirmarRemocao('{{ ingrediente }}', {{ loop.index0 }})" disabled>
+                                        onclick="confirmarRemocao('{{ ingrediente }}', '{{ loop.index0 }}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -218,7 +218,23 @@ function removerIngrediente(id) {
 }
 
 function confirmarRemocao(ingrediente, index) {
-    alert('Remoção de ingredientes será implementada em uma futura atualização.');
+    const confirmacao = confirm(`Tem certeza que deseja remover o ingrediente "${ingrediente.replace('_', ' ')}"?\n\nEsta ação irá:\n• Remover o ingrediente da receita\n• Zerar o estoque deste ingrediente para todas as sócias\n• Afetar os cálculos de capacidade de produção`);
+    
+    if (confirmacao) {
+        // Create a hidden form to submit the deletion
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/receita/{{ receita_id }}/remover-ingrediente`;
+        
+        const ingredienteInput = document.createElement('input');
+        ingredienteInput.type = 'hidden';
+        ingredienteInput.name = 'ingrediente_nome';
+        ingredienteInput.value = ingrediente;
+        
+        form.appendChild(ingredienteInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function confirmarAtualizacao() {

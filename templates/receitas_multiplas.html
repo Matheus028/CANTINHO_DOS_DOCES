@@ -214,30 +214,29 @@ function toggleReceita(receitaId, ativar) {
     const confirmacao = confirm(`Tem certeza que deseja ${acao} esta receita?`);
     
     if (confirmacao) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = window.location.href;
-        
-        const inputAcao = document.createElement('input');
-        inputAcao.type = 'hidden';
-        inputAcao.name = 'acao';
-        inputAcao.value = acao === 'ativar' ? 'ativar_receita' : 'desativar_receita';
-        
-        const inputId = document.createElement('input');
-        inputId.type = 'hidden';
-        inputId.name = 'receita_id';
-        inputId.value = receitaId;
-        
-        form.appendChild(inputAcao);
-        form.appendChild(inputId);
-        document.body.appendChild(form);
-        form.submit();
+        fetch(`/receita/${receitaId}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erro ao alterar status da receita');
+        });
     }
 }
 
 function confirmarExclusao(receitaId, nomeReceita) {
     document.getElementById('nomeReceitaExcluir').textContent = nomeReceita;
-    document.getElementById('formExcluir').action = `/receitas/${receitaId}/excluir`;
+    document.getElementById('formExcluir').action = `/receita/${receitaId}/delete`;
     
     const modal = new bootstrap.Modal(document.getElementById('modalExcluir'));
     modal.show();

@@ -228,6 +228,105 @@ def atualizar_receita(receita_id):
     
     return redirect(url_for('editar_receita', receita_id=receita_id))
 
+@app.route('/receita/<int:receita_id>/remover-ingrediente', methods=['POST'])
+def remover_ingrediente(receita_id):
+    """Remove ingredient from recipe"""
+    try:
+        receita = Receita.query.get_or_404(receita_id)
+        ingrediente_nome = request.form.get('ingrediente_nome')
+        
+        if not ingrediente_nome:
+            flash('Nome do ingrediente não fornecido', 'error')
+            return redirect(url_for('editar_receita', receita_id=receita_id))
+        
+        # Find and remove the ingredient from the recipe
+        ingrediente = IngredienteReceita.query.filter_by(
+            receita_id=receita_id, 
+            nome=ingrediente_nome
+        ).first()
+        
+        if ingrediente:
+            # Remove ingredient from recipe
+            db.session.delete(ingrediente)
+            
+            # Reset stock for all partners for this ingredient
+            EstoqueInsumo.query.filter_by(nome_insumo=ingrediente_nome).delete()
+            
+            # Update recipe timestamp
+            receita.atualizada_em = datetime.utcnow()
+            
+            db.session.commit()
+            flash(f'Ingrediente "{ingrediente_nome.replace("_", " ").title()}" removido com sucesso', 'success')
+        else:
+            flash('Ingrediente não encontrado na receita', 'error')
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error removing ingredient: {e}")
+        flash('Erro ao remover ingrediente', 'error')
+    
+    return redirect(url_for('editar_receita', receita_id=receita_id))
+
+@app.route('/receita/<int:receita_id>/delete', methods=['POST'])
+def excluir_receita(receita_id):
+    """Delete a recipe"""
+    try:
+        receita = Receita.query.get_or_404(receita_id)
+        
+        # Check if this is the only active recipe
+        receitas_ativas = Receita.query.filter_by(ativa=True).count()
+        if receita.ativa and receitas_ativas <= 1:
+            flash('Não é possível excluir a única receita ativa do sistema', 'error')
+            return redirect(url_for('receitas_multiplas'))
+        
+        # Remove related records
+        # Note: The relationship cascade='all, delete-orphan' should handle ingredients
+        # Remove stock entries for this recipe
+        EstoqueBala.query.filter_by(receita_id=receita_id).delete()
+        
+        # Remove productions for this recipe
+        Producao.query.filter_by(receita_id=receita_id).delete()
+        
+        # Remove sales for this recipe
+        Venda.query.filter_by(receita_id=receita_id).delete()
+        
+        # Delete the recipe (ingredients will be deleted by cascade)
+        db.session.delete(receita)
+        db.session.commit()
+        
+        flash(f'Receita "{receita.nome}" excluída com sucesso', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting recipe: {e}")
+        flash('Erro ao excluir receita', 'error')
+    
+    return redirect(url_for('receitas_multiplas'))
+
+@app.route('/receita/<int:receita_id>/toggle', methods=['POST'])
+def toggle_receita(receita_id):
+    """Toggle recipe active status"""
+    try:
+        receita = Receita.query.get_or_404(receita_id)
+        
+        # Check if trying to deactivate the only active recipe
+        if receita.ativa:
+            receitas_ativas = Receita.query.filter_by(ativa=True).count()
+            if receitas_ativas <= 1:
+                return jsonify({'success': False, 'message': 'Deve haver pelo menos uma receita ativa'})
+        
+        receita.ativa = not receita.ativa
+        receita.atualizada_em = datetime.utcnow()
+        db.session.commit()
+        
+        status = 'ativada' if receita.ativa else 'desativada'
+        return jsonify({'success': True, 'message': f'Receita {status} com sucesso'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error toggling recipe: {e}")
+        return jsonify({'success': False, 'message': 'Erro ao alterar status da receita'})
+
 @app.route('/producao', methods=['GET', 'POST'])
 def producao():
     """Production management"""
