@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </h1>
+    </div>
+</div>
+
+{% if contas_vencidas %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Atenção!</strong> Você tem {{ contas_vencidas | length }} conta(s) vencida(s)!
+            <a href="{{ url_for('financeiro') }}" class="btn btn-sm btn-outline-light ms-2">Ver Financeiro</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Resumo Geral -->
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white financial-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_balas_estoque }}</h4>
+                        <p class="mb-0">Balas em Estoque</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-candy-cane fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white financial-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>R$ {{ "%.2f"|format(dados.financeiro.capital_de_giro) }}</h4>
+                        <p class="mb-0">Capital de Giro</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-wallet fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white financial-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ dados.vendas | length }}</h4>
+                        <p class="mb-0">Vendas Realizadas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-shopping-cart fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-white financial-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        {% set pendentes_ifood = dados.financeiro.contas_a_receber_ifood | selectattr('status', 'equalto', 'Pendente') | list %}
+                        <h4>{{ pendentes_ifood | length }}</h4>
+                        <p class="mb-0">Pagamentos Pendentes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Capacidade de Produção -->
+    <div class="col-md-6 mb-4">
+        <div class="card capacity-indicator">
+            <div class="card-header">
+                <i class="fas fa-industry"></i> Capacidade de Produção Atual
+            </div>
+            <div class="card-body">
+                {% if capacidades_atuais %}
+                    {% for socia, capacidade in capacidades_atuais.items() %}
+                    <div class="mb-3">
+                        <h6>{{ socia }}</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 class="text-primary">{{ capacidade.receitas }}</h5>
+                                    <small class="text-muted">Receitas</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 class="text-success">{{ capacidade.balas }}</h5>
+                                    <small class="text-muted">Balas</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not loop.last %}<hr>{% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle fa-3x mb-3"></i>
+                        <p>Nenhuma capacidade de produção disponível.</p>
+                        <p><small>Verifique o estoque de insumos.</small></p>
+                    </div>
+                {% endif %}
+                
+                <div class="d-grid">
+                    <a href="{{ url_for('producao') }}" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Registrar Produção
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estoque de Balas -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-boxes"></i> Estoque de Balas Prontas
+            </div>
+            <div class="card-body">
+                {% if dados.estoque_balas_prontas %}
+                    {% for detentor, qtde in dados.estoque_balas_prontas.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 interactive-row">
+                        <span>{{ detentor }}:</span>
+                        <span class="badge bg-primary fs-6">{{ qtde }} balas</span>
+                    </div>
+                    {% endfor %}
+                    
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Total:</strong>
+                        <strong class="text-success">{{ total_balas_estoque }} balas</strong>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-box-open fa-3x mb-3"></i>
+                        <p>Nenhuma bala em estoque.</p>
+                    </div>
+                {% endif %}
+                
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('vendas') }}" class="btn btn-success">
+                        <i class="fas fa-shopping-cart"></i> Registrar Venda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lucros Pendentes -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-coins"></i> Lucros Pendentes
+            </div>
+            <div class="card-body">
+                {% if dados.financeiro.lucros_pendentes %}
+                    {% for socia, valor in dados.financeiro.lucros_pendentes.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ socia }}:</span>
+                        <span class="badge bg-success fs-6">R$ {{ "%.2f"|format(valor) }}</span>
+                    </div>
+                    {% endfor %}
+                    
+                    <hr>
+                    {% set total_lucros = dados.financeiro.lucros_pendentes.values() | sum %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Total Pendente:</strong>
+                        <strong class="text-success">R$ {{ "%.2f"|format(total_lucros) }}</strong>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-coins fa-3x mb-3"></i>
+                        <p>Nenhum lucro pendente no momento.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Últimas Vendas -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history"></i> Últimas Vendas
+            </div>
+            <div class="card-body">
+                {% if ultimas_vendas %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Produtora</th>
+                                <th>Canal</th>
+                                <th>Balas</th>
+                                <th>Valor</th>
+                                <th>Lucro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for venda in ultimas_vendas %}
+                            <tr class="interactive-row">
+                                <td>{{ venda.data_venda.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ venda.socia_produtora }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ venda.canal.title() }}</span>
+                                </td>
+                                <td>{{ venda.total_balas }}</td>
+                                <td>R$ {{ "%.2f"|format(venda.valor_bruto) }}</td>
+                                <td class="{% if venda.lucro_liquido > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    R$ {{ "%.2f"|format(venda.lucro_liquido) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('historico_vendas') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Ver Histórico Completo
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>Nenhuma venda registrada ainda.</p>
+                    <a href="{{ url_for('vendas') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Registrar Primeira Venda
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

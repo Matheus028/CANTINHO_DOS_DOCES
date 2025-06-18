@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Produção - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-industry"></i> Registrar Produção
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plus-circle"></i> Nova Produção
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('producao') }}" id="formProducao">
+                    <div class="mb-3">
+                        <label class="form-label">Sócia Produtora</label>
+                        <select name="socia_produtora" id="sociaProdutora" class="form-select" required>
+                            <option value="">Selecione...</option>
+                            {% for socia in socias %}
+                            <option value="{{ socia }}">{{ socia }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="capacidadeInfo" class="alert alert-info capacity-indicator" style="display: none;">
+                        <h6>Capacidade de Produção:</h6>
+                        <div id="capacidadeDetalhes"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Receitas a Produzir</label>
+                        <input type="number" name="receitas_a_produzir" id="receitasProduzir" class="form-control" min="0" required>
+                        <div class="form-text">
+                            <span id="balasResultado"></span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-play"></i> Registrar Produção
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Receita Padrão
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Cada receita produz <strong>{{ balas_por_receita }} balas</strong></p>
+                
+                <h6>Insumos necessários por receita:</h6>
+                <ul class="list-group list-group-flush">
+                    {% for insumo, quantidade in receita_padrao.items() %}
+                    <li class="list-group-item d-flex justify-content-between bg-dark text-light">
+                        <span>{{ insumo.replace('_', ' ').title() }}:</span>
+                        <strong>{{ quantidade }} {{ unidades[insumo] }}</strong>
+                    </li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('receita') }}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-edit"></i> Editar Receita
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dados dos estoques para JavaScript
+const estoquesInsumos = {{ dados.estoque_insumos | tojson }};
+const receitaPadrao = {{ receita_padrao | tojson }};
+const unidades = {{ unidades | tojson }};
+
+document.getElementById('sociaProdutora').addEventListener('change', function() {
+    const socia = this.value;
+    const capacidadeInfo = document.getElementById('capacidadeInfo');
+    const capacidadeDetalhes = document.getElementById('capacidadeDetalhes');
+    
+    if (socia && estoquesInsumos[socia]) {
+        let capacidadeMinima = Infinity;
+        let detalhesHtml = '<table class="table table-sm table-dark"><tbody>';
+        
+        for (const [insumo, qtdeEstoque] of Object.entries(estoquesInsumos[socia])) {
+            const qtdeNecessaria = receitaPadrao[insumo];
+            const receitasPossiveis = Math.floor(qtdeEstoque / qtdeNecessaria);
+            capacidadeMinima = Math.min(capacidadeMinima, receitasPossiveis);
+            
+            const insumoNome = insumo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            detalhesHtml += `<tr>
+                <td>${insumoNome}:</td>
+                <td>${qtdeEstoque} ${unidades[insumo]}</td>
+                <td>${receitasPossiveis} receitas</td>
+            </tr>`;
+        }
+        
+        if (capacidadeMinima === Infinity) capacidadeMinima = 0;
+        
+        detalhesHtml += '</tbody></table>';
+        detalhesHtml += `<p class="mb-0"><strong>Máximo possível: ${capacidadeMinima} receitas = ${capacidadeMinima * {{ balas_por_receita }}} balas</strong></p>`;
+        
+        capacidadeDetalhes.innerHTML = detalhesHtml;
+        capacidadeInfo.style.display = 'block';
+        
+        // Atualizar limite do campo
+        document.getElementById('receitasProduzir').max = capacidadeMinima;
+    } else {
+        capacidadeInfo.style.display = 'none';
+    }
+});
+
+document.getElementById('receitasProduzir').addEventListener('input', function() {
+    const receitas = parseInt(this.value) || 0;
+    const balas = receitas * {{ balas_por_receita }};
+    document.getElementById('balasResultado').textContent = `= ${balas} balas`;
+});
+</script>
+{% endblock %}

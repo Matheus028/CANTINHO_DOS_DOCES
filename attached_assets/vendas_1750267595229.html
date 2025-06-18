@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Vendas - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-shopping-cart"></i> Registrar Venda
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plus-circle"></i> Nova Venda
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('vendas') }}" id="formVenda">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sócia Produtora (Divisão do Lucro)</label>
+                            <select name="socia_produtora" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                {% for socia in socias %}
+                                <option value="{{ socia }}">{{ socia }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estoque de Saída</label>
+                            <select name="estoque_saida" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                {% for detentor in detentores_estoque %}
+                                <option value="{{ detentor }}">{{ detentor }} ({{ dados.estoque_balas_prontas[detentor] }} balas)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Canal de Venda</label>
+                        <select name="canal_venda" id="canalVenda" class="form-select" required onchange="mostrarOpcoesPrecificacao()">
+                            <option value="">Selecione...</option>
+                            {% for canal in precos_venda.keys() %}
+                            <option value="{{ canal }}">{{ canal.replace('_', ' ').title() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Opções de venda para canal restaurante -->
+                    <div id="opcoes-restaurante" class="mb-3" style="display: none;">
+                        <label class="form-label">Quantidade de Balas</label>
+                        <input type="number" name="quantidade_balas" class="form-control" min="1" placeholder="Digite a quantidade">
+                        <small class="form-text text-muted">Preço unitário: R$ <span id="preco-unitario">0.00</span></small>
+                    </div>
+
+                    <!-- Opções de venda para outros canais (pacotes) -->
+                    <div id="opcoes-pacotes" class="mb-3" style="display: none;">
+                        <label class="form-label">Tipo de Pacote</label>
+                        <select name="tipo_pacote" id="tipoPacote" class="form-select">
+                            <option value="">Selecione o pacote...</option>
+                        </select>
+                    </div>
+
+                    <!-- Informações de venda iFood -->
+                    <div id="info-ifood" class="mb-3" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Vendedor iFood</label>
+                                <select name="fonte_ifood" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% for vendedor in vendedores_ifood %}
+                                    <option value="{{ vendedor }}">{{ vendedor }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">ID do Recebível</label>
+                                <input type="text" name="id_recebivel" class="form-control" placeholder="Ex: REC001">
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Data Prevista Recebimento</label>
+                                <input type="date" name="data_prevista" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resumo da venda -->
+                    <div id="resumo-venda" class="alert alert-primary" style="display: none;">
+                        <h6><i class="fas fa-calculator"></i> Resumo da Venda</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small><strong>Total de Balas:</strong> <span id="total-balas">0</span></small><br>
+                                <small><strong>Valor Bruto:</strong> R$ <span id="valor-bruto">0.00</span></small>
+                            </div>
+                            <div class="col-md-6">
+                                <small><strong>Custo Estimado:</strong> R$ <span id="custo-estimado">0.00</span></small><br>
+                                <small><strong>Lucro Líquido:</strong> R$ <span id="lucro-liquido">0.00</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-check"></i> Registrar Venda
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações
+            </div>
+            <div class="card-body">
+                <h6>Estoque Atual de Balas:</h6>
+                {% if dados.estoque_balas_prontas %}
+                    {% for detentor, qtde in dados.estoque_balas_prontas.items() %}
+                    <div class="d-flex justify-content-between mb-2 interactive-row">
+                        <span>{{ detentor }}:</span>
+                        <span class="badge bg-primary">{{ qtde }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Nenhuma bala em estoque.</p>
+                {% endif %}
+                
+                <hr>
+                <h6>Preços por Canal:</h6>
+                {% for canal, precos in precos_venda.items() %}
+                <div class="mb-2">
+                    <strong>{{ canal.replace('_', ' ').title() }}:</strong>
+                    <ul class="list-group list-group-flush mt-1">
+                        {% for pacote, preco in precos.items() %}
+                        <li class="list-group-item d-flex justify-content-between py-1 bg-dark text-light">
+                            <small>
+                                {% if pacote == 'preco_unitario' %}
+                                    Por unidade:
+                                {% else %}
+                                    {{ pacote.replace('_', ' ').title() }}:
+                                {% endif %}
+                            </small>
+                            <small><strong>R$ {{ "%.2f"|format(preco) }}</strong></small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const precosVenda = {{ precos_venda | tojson }};
+
+function mostrarOpcoesPrecificacao() {
+    const canal = document.getElementById('canalVenda').value;
+    const opcoesRestaurante = document.getElementById('opcoes-restaurante');
+    const opcoesPacotes = document.getElementById('opcoes-pacotes');
+    const infoIfood = document.getElementById('info-ifood');
+    const tipoPacote = document.getElementById('tipoPacote');
+    
+    // Hide all options first
+    opcoesRestaurante.style.display = 'none';
+    opcoesPacotes.style.display = 'none';
+    infoIfood.style.display = 'none';
+    
+    if (canal === 'restaurante') {
+        opcoesRestaurante.style.display = 'block';
+        const precoUnitario = precosVenda[canal]['preco_unitario'];
+        document.getElementById('preco-unitario').textContent = precoUnitario.toFixed(2);
+        
+        // Add event listener for quantity calculation
+        const quantidadeInput = document.querySelector('input[name="quantidade_balas"]');
+        quantidadeInput.addEventListener('input', calcularResumoVenda);
+        
+    } else if (canal && precosVenda[canal]) {
+        opcoesPacotes.style.display = 'block';
+        
+        // Clear and populate package options
+        tipoPacote.innerHTML = '<option value="">Selecione o pacote...</option>';
+        
+        for (const [pacote, preco] of Object.entries(precosVenda[canal])) {
+            if (pacote !== 'preco_unitario') {
+                const option = document.createElement('option');
+                option.value = pacote;
+                option.textContent = `${pacote.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} - R$ ${preco.toFixed(2)}`;
+                option.dataset.preco = preco;
+                
+                // Extract quantity from package name (e.g., "pacote_3" -> 3)
+                const quantityMatch = pacote.match(/(\d+)/);
+                if (quantityMatch) {
+                    option.dataset.quantidade = quantityMatch[1];
+                }
+                
+                tipoPacote.appendChild(option);
+            }
+        }
+        
+        // Add event listener for package selection
+        tipoPacote.addEventListener('change', calcularResumoVenda);
+        
+        // Show iFood specific fields
+        if (canal === 'ifood') {
+            infoIfood.style.display = 'block';
+        }
+    }
+    
+    calcularResumoVenda();
+}
+
+function calcularResumoVenda() {
+    const canal = document.getElementById('canalVenda').value;
+    const resumoDiv = document.getElementById('resumo-venda');
+    
+    let totalBalas = 0;
+    let valorBruto = 0;
+    let custoEstimado = 0;
+    
+    if (canal === 'restaurante') {
+        const quantidade = parseInt(document.querySelector('input[name="quantidade_balas"]').value) || 0;
+        const precoUnitario = precosVenda[canal]['preco_unitario'];
+        
+        totalBalas = quantidade;
+        valorBruto = quantidade * precoUnitario;
+        custoEstimado = quantidade * 1.0; // Assumindo custo de R$ 1.00 por bala
+        
+    } else if (canal && precosVenda[canal]) {
+        const tipoPacoteSelect = document.getElementById('tipoPacote');
+        const selectedOption = tipoPacoteSelect.selectedOptions[0];
+        
+        if (selectedOption && selectedOption.value) {
+            const preco = parseFloat(selectedOption.dataset.preco);
+            const quantidade = parseInt(selectedOption.dataset.quantidade) || 0;
+            
+            valorBruto = preco;
+            totalBalas = quantidade;
+            custoEstimado = totalBalas * 1.0; // Assumindo custo de R$ 1.00 por bala
+        }
+    }
+    
+    let lucroLiquido = valorBruto - custoEstimado;
+    
+    // Apply iFood fees for calculation display
+    if (canal === 'ifood' && valorBruto > 0) {
+        const taxaPercentual = valorBruto * 0.262;
+        const taxaFixa = valorBruto < 20.00 ? 1.00 : 0.00;
+        const taxaTotal = taxaPercentual + taxaFixa;
+        const valorLiquido = valorBruto - taxaTotal;
+        lucroLiquido = valorLiquido - custoEstimado;
+    }
+    
+    if (totalBalas > 0 && valorBruto > 0) {
+        document.getElementById('total-balas').textContent = totalBalas;
+        document.getElementById('valor-bruto').textContent = valorBruto.toFixed(2);
+        document.getElementById('custo-estimado').textContent = custoEstimado.toFixed(2);
+        document.getElementById('lucro-liquido').textContent = lucroLiquido.toFixed(2);
+        resumoDiv.style.display = 'block';
+    } else {
+        resumoDiv.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

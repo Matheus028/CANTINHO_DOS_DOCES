@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-cog"></i> Configurações de Preços
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-dollar-sign"></i> Gerenciar Preços por Canal
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Atenção:</strong> Alterar os preços afetará apenas as próximas vendas. Vendas já registradas não serão alteradas.
+                </div>
+                
+                <form method="POST" action="{{ url_for('configuracoes') }}" class="mb-4">
+                    <h5>Adicionar/Editar Configuração de Preço</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Canal de Venda</label>
+                            <select name="canal" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <option value="venda_direta">Venda Direta</option>
+                                <option value="restaurante">Restaurante</option>
+                                <option value="ifood">iFood</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tipo de Pacote</label>
+                            <select name="tipo_pacote" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <option value="preco_unitario">Preço Unitário</option>
+                                <option value="pacote_3">Pacote 3 Balas</option>
+                                <option value="pacote_6">Pacote 6 Balas</option>
+                                <option value="pacote_10">Pacote 10 Balas</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Qtd. Balas</label>
+                            <input type="number" name="quantidade_balas" class="form-control" min="1" required>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Preço (R$)</label>
+                            <input type="number" name="preco" class="form-control" step="0.01" min="0" required>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-save"></i> Salvar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <h5>Configurações Atuais</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Canal</th>
+                                <th>Tipo</th>
+                                <th>Qtd. Balas</th>
+                                <th>Preço</th>
+                                <th>Última Atualização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for config in configs %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary">{{ config.canal.replace('_', ' ').title() }}</span>
+                                </td>
+                                <td>{{ config.tipo_pacote.replace('_', ' ').title() }}</td>
+                                <td>{{ config.quantidade_balas }}</td>
+                                <td>R$ {{ "%.2f"|format(config.preco) }}</td>
+                                <td>{{ config.updated_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="editarConfig({{ config.id }}, '{{ config.canal }}', '{{ config.tipo_pacote }}', {{ config.quantidade_balas }}, {{ config.preco }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações sobre Preços
+            </div>
+            <div class="card-body">
+                <h6>Canais de Venda</h6>
+                <ul class="text-muted">
+                    <li><strong>Venda Direta:</strong> Vendas diretas ao consumidor</li>
+                    <li><strong>Restaurante:</strong> Vendas para estabelecimentos, preço por unidade</li>
+                    <li><strong>iFood:</strong> Vendas através da plataforma iFood</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Taxas do iFood</h6>
+                <p class="text-muted">
+                    O sistema calcula automaticamente as taxas do iFood:
+                </p>
+                <ul class="text-muted">
+                    <li>26,20% sobre o valor bruto</li>
+                    <li>+ R$ 1,00 para vendas abaixo de R$ 20,00</li>
+                </ul>
+                
+                <hr>
+                
+                <div class="alert alert-warning">
+                    <small>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Importante:</strong> Sempre verifique se os preços estão competitivos e cobrem os custos de produção.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="fas fa-calculator"></i> Calculadora de Margem
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Preço de Venda</label>
+                    <input type="number" class="form-control" id="precoVenda" step="0.01" placeholder="0.00">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Custo por Bala</label>
+                    <input type="number" class="form-control" id="custoBala" step="0.01" value="1.00">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Quantidade de Balas</label>
+                    <input type="number" class="form-control" id="qtdBalas" min="1" value="1">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Canal</label>
+                    <select class="form-select" id="canalCalc">
+                        <option value="direto">Venda Direta</option>
+                        <option value="restaurante">Restaurante</option>
+                        <option value="ifood">iFood</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="btn btn-outline-info w-100" onclick="calcularMargem()">
+                    <i class="fas fa-calculator"></i> Calcular Margem
+                </button>
+                
+                <div id="resultadoMargem" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <strong>Resultado:</strong><br>
+                        <span id="margemTexto"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarConfig(id, canal, tipo, quantidade, preco) {
+    // Fill form with existing data for editing
+    document.querySelector('[name="canal"]').value = canal;
+    document.querySelector('[name="tipo_pacote"]').value = tipo;
+    document.querySelector('[name="quantidade_balas"]').value = quantidade;
+    document.querySelector('[name="preco"]').value = preco;
+    
+    // Scroll to form
+    document.querySelector('form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function calcularMargem() {
+    const precoVenda = parseFloat(document.getElementById('precoVenda').value) || 0;
+    const custoBala = parseFloat(document.getElementById('custoBala').value) || 1;
+    const qtdBalas = parseInt(document.getElementById('qtdBalas').value) || 1;
+    const canal = document.getElementById('canalCalc').value;
+    
+    if (precoVenda <= 0) {
+        alert('Por favor, insira um preço válido.');
+        return;
+    }
+    
+    let custoTotal = custoBala * qtdBalas;
+    let valorLiquido = precoVenda;
+    
+    // Apply iFood fees
+    if (canal === 'ifood') {
+        const taxaPercentual = precoVenda * 0.262;
+        const taxaFixa = precoVenda < 20 ? 1.00 : 0.00;
+        const taxaTotal = taxaPercentual + taxaFixa;
+        valorLiquido = precoVenda - taxaTotal;
+    }
+    
+    const lucro = valorLiquido - custoTotal;
+    const margemPercentual = custoTotal > 0 ? ((lucro / custoTotal) * 100) : 0;
+    
+    let resultado = `
+        Preço de Venda: R$ ${precoVenda.toFixed(2)}<br>
+        ${canal === 'ifood' ? `Valor Líquido: R$ ${valorLiquido.toFixed(2)}<br>` : ''}
+        Custo Total: R$ ${custoTotal.toFixed(2)}<br>
+        Lucro: R$ ${lucro.toFixed(2)}<br>
+        Margem: ${margemPercentual.toFixed(1)}%
+    `;
+    
+    document.getElementById('margemTexto').innerHTML = resultado;
+    document.getElementById('resultadoMargem').style.display = 'block';
+}
+</script>
+{% endblock %}

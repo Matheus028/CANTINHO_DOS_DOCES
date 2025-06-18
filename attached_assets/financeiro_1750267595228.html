@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Financeiro - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-money-bill"></i> Painel Financeiro
+        </h1>
+    </div>
+</div>
+
+{% if pagamentos_vencidos %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Atenção!</strong> Você tem {{ pagamentos_vencidos | length }} pagamento(s) do iFood vencido(s) ou vencendo hoje.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Resumo Financeiro -->
+    <div class="col-md-4 mb-4">
+        <div class="card financial-card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-wallet"></i> Resumo Financeiro
+            </div>
+            <div class="card-body">
+                <h5>Capital de Giro</h5>
+                <h3 class="text-success">R$ {{ "%.2f"|format(dados.financeiro.capital_de_giro) }}</h3>
+                
+                <hr>
+                <h6>Lucros Pendentes</h6>
+                <p class="mb-1">Você: <strong>R$ {{ "%.2f"|format(dados.financeiro.lucro_pendente_voce) }}</strong></p>
+                {% for socia, valor in dados.financeiro.lucro_pendente_socias.items() %}
+                <p class="mb-1">{{ socia }}: <strong>R$ {{ "%.2f"|format(valor) }}</strong></p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contas a Receber -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-clock"></i> Contas a Receber (iFood)
+            </div>
+            <div class="card-body">
+                {% set pendentes_ifood = dados.financeiro.contas_a_receber_ifood | selectattr('status', 'equalto', 'Pendente') | list %}
+                
+                {% if pendentes_ifood %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fonte</th>
+                                <th>Valor</th>
+                                <th>Data Prevista</th>
+                                <th>Status</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pendentes_ifood %}
+                            <tr class="interactive-row">
+                                <td>{{ p.id }}</td>
+                                <td>iFood {{ p.fonte_ifood }}</td>
+                                <td>R$ {{ "%.2f"|format(p.valor_a_receber) }}</td>
+                                <td>{{ p.data_prevista }}</td>
+                                <td>
+                                    <span class="badge bg-warning">{{ p.status }}</span>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('confirmar_recebimento', conta_id=p.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-success" 
+                                                onclick="return confirm('Confirmar recebimento de R$ {{ '%.2f'|format(p.valor_a_receber) }}?')">
+                                            <i class="fas fa-check"></i> Confirmar
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <p>Nenhum pagamento pendente do iFood.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Contas a Pagar Pendentes -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-credit-card"></i> Contas a Pagar
+            </div>
+            <div class="card-body">
+                {% set contas_pendentes = dados.financeiro.contas_a_pagar | selectattr('status', 'equalto', 'Pendente') | list %}
+                
+                {% if contas_pendentes %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Vencimento</th>
+                                <th>Status</th>
+                                <th>Tipo</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conta in contas_pendentes %}
+                            <tr class="interactive-row">
+                                <td>{{ conta.id }}</td>
+                                <td>{{ conta.descricao }}</td>
+                                <td>R$ {{ "%.2f"|format(conta.valor) }}</td>
+                                <td>{{ conta.data_vencimento if conta.data_vencimento else 'N/A' }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ conta.status }}</span>
+                                </td>
+                                <td>
+                                    {% if conta.tipo %}
+                                        <span class="badge bg-info">{{ conta.tipo }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('pagar_conta', conta_id=conta.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-primary" 
+                                                onclick="return confirm('Pagar conta de R$ {{ '%.2f'|format(conta.valor) }}?')">
+                                            <i class="fas fa-dollar-sign"></i> Pagar
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <p>Nenhuma conta a pagar pendente.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimas Transações e Ações Financeiras -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Últimas Transações</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in dados.financeiro.transacoes %}
+                            <tr class="interactive-row">
+                                <td>{{ t.data_transacao.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    {% if t.tipo == 'aporte' %}
+                                        <span class="badge bg-success">Aporte</span>
+                                    {% elif t.tipo == 'recebimento_ifood' %}
+                                        <span class="badge bg-info">Recebimento</span>
+                                    {% elif t.tipo == 'pagamento_direto' %}
+                                        <span class="badge bg-warning">Pagamento</span>
+                                    {% elif t.tipo == 'compra_credito' %}
+                                        <span class="badge bg-secondary">Crédito</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">{{ t.tipo.title() }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ t.descricao }}</td>
+                                <td>
+                                    {% if t.valor > 0 %}
+                                        <span class="text-success">+R$ {{ "%.2f"|format(t.valor) }}</span>
+                                    {% else %}
+                                        <span class="text-danger">R$ {{ "%.2f"|format(t.valor) }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Nenhuma transação encontrada</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Financeiras -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Ações Financeiras</h5>
+            </div>
+            <div class="card-body">
+                <!-- Adicionar Aporte -->
+                <div class="mb-3">
+                    <button class="btn btn-success w-100" data-bs-toggle="collapse" data-bs-target="#collapseAporte">
+                        <i class="fas fa-plus"></i> Adicionar Aporte
+                    </button>
+                    <div class="collapse mt-3" id="collapseAporte">
+                        <form method="POST" action="{{ url_for('adicionar_aporte') }}">
+                            <div class="mb-3">
+                                <label for="valor_aporte" class="form-label">Valor do Aporte</label>
+                                <input type="number" class="form-control" id="valor_aporte" name="valor" step="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="descricao_aporte" class="form-label">Descrição</label>
+                                <input type="text" class="form-control" id="descricao_aporte" name="descricao" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Adicionar Aporte</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Compra no Crédito -->
+                <div class="mb-3">
+                    <button class="btn btn-warning w-100" data-bs-toggle="collapse" data-bs-target="#collapseCredito">
+                        <i class="fas fa-credit-card"></i> Compra no Crédito
+                    </button>
+                    <div class="collapse mt-3" id="collapseCredito">
+                        <form method="POST" action="{{ url_for('compra_credito') }}">
+                            <div class="mb-3">
+                                <label for="descricao_credito" class="form-label">Descrição da Compra</label>
+                                <input type="text" class="form-control" id="descricao_credito" name="descricao" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="valor_credito" class="form-label">Valor</label>
+                                <input type="number" class="form-control" id="valor_credito" name="valor" step="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="data_vencimento_credito" class="form-label">Data de Vencimento</label>
+                                <input type="date" class="form-control" id="data_vencimento_credito" name="data_vencimento">
+                            </div>
+                            <button type="submit" class="btn btn-warning">Registrar Compra</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
