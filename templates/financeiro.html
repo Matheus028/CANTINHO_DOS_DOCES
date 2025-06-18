@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Financeiro - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-wallet"></i> Gestão Financeira
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Capital de Giro -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-piggy-bank"></i> Capital de Giro
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('financeiro') }}">
+                    <input type="hidden" name="acao" value="atualizar_capital">
+                    <div class="mb-3">
+                        <label class="form-label">Capital Disponível</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="capital" class="form-control" 
+                                   value="{{ capital.valor if capital else 0 }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Atualizar Capital
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Adicionar Lucros -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plus-circle"></i> Adicionar Lucros
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('financeiro') }}">
+                    <input type="hidden" name="acao" value="adicionar_lucro">
+                    <div class="mb-3">
+                        <label class="form-label">Sócia</label>
+                        <select name="socia" class="form-select" required>
+                            <option value="">Selecione...</option>
+                            {% for socia in socias %}
+                            <option value="{{ socia }}">{{ socia }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" name="descricao" class="form-control" 
+                               placeholder="Ex: Venda externa, bonificação..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valor" class="form-control" 
+                                   step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Adicionar Lucro
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Lucros Pendentes por Sócia -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-coins"></i> Lucros Pendentes por Sócia
+            </div>
+            <div class="card-body">
+                {% if lucros_por_socia %}
+                    {% for socia, lucros in lucros_por_socia.items() %}
+                    <div class="mb-4">
+                        <h5 class="text-primary">{{ socia }}</h5>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Descrição</th>
+                                        <th>Origem</th>
+                                        <th>Valor</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set total_socia = 0 %}
+                                    {% for lucro in lucros %}
+                                    {% set total_socia = total_socia + lucro.valor %}
+                                    <tr>
+                                        <td>{{ lucro.data_adicao.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ lucro.descricao }}</td>
+                                        <td><small class="text-muted">{{ lucro.origem }}</small></td>
+                                        <td class="text-success">R$ {{ "%.2f"|format(lucro.valor) }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ url_for('financeiro') }}" class="d-inline">
+                                                <input type="hidden" name="acao" value="pagar_lucro">
+                                                <input type="hidden" name="lucro_id" value="{{ lucro.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                                        onclick="return confirm('Marcar como pago?')">
+                                                    <i class="fas fa-check"></i> Pagar
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <th colspan="3">Total para {{ socia }}:</th>
+                                        <th class="text-success">R$ {{ "%.2f"|format(total_socia) }}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        {% if not loop.last %}<hr>{% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-coins fa-3x mb-3"></i>
+                        <p>Nenhum lucro pendente no momento.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contas a Receber -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-file-invoice-dollar"></i> Contas a Receber
+            </div>
+            <div class="card-body">
+                {% if contas_receber %}
+                    {% for conta in contas_receber %}
+                    <div class="mb-3 p-3 border rounded {% if conta.data_vencimento < date.today() %}border-danger{% else %}border-secondary{% endif %}">
+                        <h6 class="mb-1">{{ conta.descricao }}</h6>
+                        <p class="mb-1 text-success">R$ {{ "%.2f"|format(conta.valor) }}</p>
+                        <small class="text-muted">
+                            Vencimento: {{ conta.data_vencimento.strftime('%d/%m/%Y') }}
+                            {% if conta.fonte %}
+                            <br>Fonte: {{ conta.fonte }}
+                            {% endif %}
+                        </small>
+                        {% if conta.data_vencimento < date.today() %}
+                        <br><small class="text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> Vencida
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-file-invoice fa-3x mb-3"></i>
+                        <p>Nenhuma conta a receber.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Resumo Financeiro -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar"></i> Resumo Financeiro
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success">R$ {{ "%.2f"|format(capital.valor if capital else 0) }}</h4>
+                            <small class="text-muted">Capital de Giro</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set total_lucros_pendentes = lucros_por_socia.values() | map('sum', attribute='valor') | sum %}
+                            <h4 class="text-warning">R$ {{ "%.2f"|format(total_lucros_pendentes or 0) }}</h4>
+                            <small class="text-muted">Lucros a Pagar</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set total_receber = contas_receber | sum(attribute='valor') %}
+                            <h4 class="text-info">R$ {{ "%.2f"|format(total_receber) }}</h4>
+                            <small class="text-muted">Contas a Receber</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set saldo_projetado = (capital.valor if capital else 0) + total_receber - (total_lucros_pendentes or 0) %}
+                            <h4 class="{% if saldo_projetado >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                R$ {{ "%.2f"|format(saldo_projetado) }}
+                            </h4>
+                            <small class="text-muted">Saldo Projetado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Import date for template context
+{% set date = moment().date() if moment else None %}
+</script>
+{% endblock %}

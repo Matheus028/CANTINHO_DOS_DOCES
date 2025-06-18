@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Receitas - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-utensils"></i> Gerenciar Receitas
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <p class="text-muted mb-0">Gerencie todas as receitas do sistema</p>
+            <a href="{{ url_for('nova_receita') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nova Receita
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if receitas %}
+        {% for receita in receitas %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 {% if receita.ativa %}border-success{% else %}border-secondary{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ receita.nome }}</h5>
+                    {% if receita.ativa %}
+                        <span class="badge bg-success">Ativa</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inativa</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if receita.descricao %}
+                    <p class="card-text text-muted">{{ receita.descricao }}</p>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Balas por receita:</small>
+                                <div class="h6 text-primary">{{ receita.balas_por_receita }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Custo por bala:</small>
+                                <div class="h6 text-success">R$ {{ "%.2f"|format(receita.custo_por_bala) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="small">Ingredientes ({{ receita.ingredientes|length }}):</h6>
+                        {% if receita.ingredientes %}
+                            <div class="ingredient-list">
+                                {% for ingrediente in receita.ingredientes[:3] %}
+                                <span class="badge bg-dark me-1 mb-1">
+                                    {{ ingrediente.nome.replace('_', ' ').title() }}
+                                </span>
+                                {% endfor %}
+                                {% if receita.ingredientes|length > 3 %}
+                                <span class="badge bg-secondary">+{{ receita.ingredientes|length - 3 }} mais</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <small class="text-muted">Nenhum ingrediente cadastrado</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-2">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> Criada em: {{ receita.criada_em.strftime('%d/%m/%Y') }}
+                        </small>
+                    </div>
+                    
+                    {% if receita.atualizada_em != receita.criada_em %}
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-edit"></i> Atualizada em: {{ receita.atualizada_em.strftime('%d/%m/%Y') }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100" role="group">
+                        <a href="{{ url_for('editar_receita', receita_id=receita.id) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        {% if receita.ativa %}
+                        <button class="btn btn-outline-warning" 
+                                onclick="toggleReceita({{ receita.id }}, false)"
+                                title="Desativar receita">
+                            <i class="fas fa-pause"></i> Desativar
+                        </button>
+                        {% else %}
+                        <button class="btn btn-outline-success" 
+                                onclick="toggleReceita({{ receita.id }}, true)"
+                                title="Ativar receita">
+                            <i class="fas fa-play"></i> Ativar
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-outline-danger" 
+                                onclick="confirmarExclusao({{ receita.id }}, '{{ receita.nome }}')"
+                                title="Excluir receita">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-utensils fa-4x text-muted mb-3"></i>
+                    <h4>Nenhuma receita cadastrada</h4>
+                    <p class="text-muted">Comece criando sua primeira receita para o sistema.</p>
+                    <a href="{{ url_for('nova_receita') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Criar Primeira Receita
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Statistics Section -->
+{% if receitas %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar"></i> Estatísticas das Receitas
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">{{ receitas|length }}</h4>
+                            <small class="text-muted">Total de Receitas</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set receitas_ativas = receitas|selectattr('ativa', 'equalto', true)|list %}
+                            <h4 class="text-success">{{ receitas_ativas|length }}</h4>
+                            <small class="text-muted">Receitas Ativas</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set total_ingredientes = receitas|sum(attribute='ingredientes')|length if receitas else 0 %}
+                            <h4 class="text-info">{{ total_ingredientes }}</h4>
+                            <small class="text-muted">Total Ingredientes</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% set custo_medio = (receitas|sum(attribute='custo_por_bala') / receitas|length) if receitas else 0 %}
+                            <h4 class="text-warning">R$ {{ "%.2f"|format(custo_medio) }}</h4>
+                            <small class="text-muted">Custo Médio/Bala</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal para confirmação de exclusão -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Atenção!</strong> Esta ação não pode ser desfeita.
+                </div>
+                <p>Tem certeza que deseja excluir a receita <strong id="nomeReceitaExcluir"></strong>?</p>
+                <p class="text-muted">Esta ação irá:</p>
+                <ul class="text-muted">
+                    <li>Remover a receita permanentemente</li>
+                    <li>Remover todos os estoques relacionados</li>
+                    <li>Afetar o histórico de produção</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" action="" id="formExcluir" style="display: inline;">
+                    <input type="hidden" name="acao" value="excluir_receita">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Excluir Receita
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleReceita(receitaId, ativar) {
+    const acao = ativar ? 'ativar' : 'desativar';
+    const confirmacao = confirm(`Tem certeza que deseja ${acao} esta receita?`);
+    
+    if (confirmacao) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.href;
+        
+        const inputAcao = document.createElement('input');
+        inputAcao.type = 'hidden';
+        inputAcao.name = 'acao';
+        inputAcao.value = acao === 'ativar' ? 'ativar_receita' : 'desativar_receita';
+        
+        const inputId = document.createElement('input');
+        inputId.type = 'hidden';
+        inputId.name = 'receita_id';
+        inputId.value = receitaId;
+        
+        form.appendChild(inputAcao);
+        form.appendChild(inputId);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function confirmarExclusao(receitaId, nomeReceita) {
+    document.getElementById('nomeReceitaExcluir').textContent = nomeReceita;
+    document.getElementById('formExcluir').action = `/receitas/${receitaId}/excluir`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalExcluir'));
+    modal.show();
+}
+</script>
+{% endblock %}

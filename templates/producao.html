@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Produção - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-industry"></i> Registrar Produção
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plus-circle"></i> Nova Produção
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('producao') }}" id="formProducao">
+                    <div class="mb-3">
+                        <label class="form-label">Sócia Produtora</label>
+                        <select name="socia_produtora" id="sociaProdutora" class="form-select" required>
+                            <option value="">Selecione...</option>
+                            {% for socia in socias %}
+                            <option value="{{ socia }}">{{ socia }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Receita</label>
+                        <select name="receita_id" id="receitaId" class="form-select" required>
+                            <option value="">Selecione...</option>
+                            {% for receita in receitas %}
+                            <option value="{{ receita.id }}">{{ receita.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="capacidadeInfo" class="alert alert-info capacity-indicator" style="display: none;">
+                        <h6>Capacidade de Produção:</h6>
+                        <div id="capacidadeDetalhes"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Receitas a Produzir</label>
+                        <input type="number" name="receitas_a_produzir" id="receitasProduzir" class="form-control" min="0" required>
+                        <div class="form-text">
+                            <span id="balasResultado"></span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-play"></i> Registrar Produção
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        {% if receitas %}
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Receitas Disponíveis
+            </div>
+            <div class="card-body">
+                {% for receita in receitas %}
+                <div class="mb-3">
+                    <h6>{{ receita.nome }}</h6>
+                    <p class="text-muted">{{ receita.descricao or 'Sem descrição' }}</p>
+                    <small class="text-info">Produz {{ receita.balas_por_receita }} balas por receita</small>
+                    
+                    <div class="mt-2">
+                        <h6 class="small">Ingredientes:</h6>
+                        <ul class="list-group list-group-flush">
+                            {% for ingrediente in receita.ingredientes %}
+                            <li class="list-group-item d-flex justify-content-between bg-dark text-light">
+                                <span>{{ ingrediente.nome.replace('_', ' ').title() }}:</span>
+                                <strong>{{ ingrediente.quantidade }} {{ ingrediente.unidade }}</strong>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    {% if not loop.last %}<hr>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Production capacity calculation
+document.getElementById('sociaProdutora').addEventListener('change', updateCapacity);
+document.getElementById('receitaId').addEventListener('change', updateCapacity);
+
+document.getElementById('receitasProduzir').addEventListener('input', function() {
+    const receitas = parseInt(this.value) || 0;
+    const receitaSelect = document.getElementById('receitaId');
+    const selectedOption = receitaSelect.selectedOptions[0];
+    
+    if (selectedOption) {
+        // Get balas per recipe from data attribute or make API call
+        const balasPorReceita = 40; // Default value, should be dynamic
+        const balas = receitas * balasPorReceita;
+        document.getElementById('balasResultado').textContent = `= ${balas} balas`;
+    }
+});
+
+function updateCapacity() {
+    const socia = document.getElementById('sociaProdutora').value;
+    const receitaId = document.getElementById('receitaId').value;
+    const capacidadeInfo = document.getElementById('capacidadeInfo');
+    const capacidadeDetalhes = document.getElementById('capacidadeDetalhes');
+    
+    if (socia && receitaId) {
+        // Make API call to get capacity
+        fetch(`/api/capacidade/${socia}?receita_id=${receitaId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.receitas > 0) {
+                    capacidadeDetalhes.innerHTML = `
+                        <p class="mb-0">
+                            <strong>Máximo possível: ${data.receitas} receitas = ${data.balas} balas</strong>
+                        </p>
+                    `;
+                    capacidadeInfo.style.display = 'block';
+                    document.getElementById('receitasProduzir').max = data.receitas;
+                } else {
+                    capacidadeDetalhes.innerHTML = `
+                        <p class="mb-0 text-warning">
+                            <strong>Estoque insuficiente para produção</strong>
+                        </p>
+                    `;
+                    capacidadeInfo.style.display = 'block';
+                    document.getElementById('receitasProduzir').max = 0;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching capacity:', error);
+                capacidadeInfo.style.display = 'none';
+            });
+    } else {
+        capacidadeInfo.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

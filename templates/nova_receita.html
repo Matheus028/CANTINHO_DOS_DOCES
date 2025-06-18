@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Receita - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-plus-circle"></i> Criar Nova Receita
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-utensils"></i> Dados da Receita
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('nova_receita') }}" id="formNovaReceita">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Dica:</strong> Crie receitas para diferentes sabores ou tipos de balas baianas. 
+                        Cada receita pode ter ingredientes e quantidades específicas.
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nome da Receita *</label>
+                            <input type="text" name="nome" class="form-control" 
+                                   placeholder="Ex: Bala Baiana de Morango" required>
+                            <div class="form-text">Nome único para identificar a receita</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Balas por Receita *</label>
+                            <input type="number" name="balas_por_receita" class="form-control" 
+                                   value="40" min="1" max="500" required>
+                            <div class="form-text">Quantas balas esta receita produz</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Custo por Bala (R$)</label>
+                            <input type="number" name="custo_por_bala" class="form-control" 
+                                   value="1.00" step="0.01" min="0.01">
+                            <div class="form-text">Custo estimado por bala</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea name="descricao" class="form-control" rows="2" 
+                                  placeholder="Descreva brevemente esta receita..."></textarea>
+                        <div class="form-text">Descrição opcional da receita</div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5>Ingredientes da Receita</h5>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Importante:</strong> Adicione pelo menos um ingrediente. 
+                        Os nomes dos ingredientes devem ser únicos no sistema.
+                    </div>
+                    
+                    <div id="ingredientes-container">
+                        <!-- Primeiro ingrediente (obrigatório) -->
+                        <div class="row mb-3 ingrediente-row">
+                            <div class="col-md-4">
+                                <label class="form-label">Nome do Ingrediente *</label>
+                                <input type="text" name="ingrediente_nome" class="form-control" 
+                                       placeholder="Ex: Açúcar cristal" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Quantidade *</label>
+                                <input type="number" name="ingrediente_quantidade" class="form-control" 
+                                       step="0.01" min="0.01" placeholder="500" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Unidade *</label>
+                                <select name="ingrediente_unidade" class="form-select" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="g">g (gramas)</option>
+                                    <option value="ml">ml (mililitros)</option>
+                                    <option value="kg">kg (quilogramas)</option>
+                                    <option value="l">l (litros)</option>
+                                    <option value="unidade(s)">unidade(s)</option>
+                                    <option value="colher(es)">colher(es)</option>
+                                    <option value="xícara(s)">xícara(s)</option>
+                                    <option value="pitada(s)">pitada(s)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-outline-danger form-control" 
+                                        onclick="removerIngrediente(this)" disabled>
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-4" onclick="adicionarIngrediente()">
+                        <i class="fas fa-plus"></i> Adicionar Outro Ingrediente
+                    </button>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('receitas_multiplas') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Criar Receita
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações
+            </div>
+            <div class="card-body">
+                <h6>Sobre as Receitas</h6>
+                <p class="text-muted">As receitas são usadas para:</p>
+                <ul class="text-muted">
+                    <li>Calcular capacidade de produção</li>
+                    <li>Controlar estoque de ingredientes</li>
+                    <li>Determinar custos de produção</li>
+                    <li>Registrar vendas específicas</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Unidades Recomendadas</h6>
+                <div class="row">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <strong>Sólidos:</strong> g, kg<br>
+                            <strong>Líquidos:</strong> ml, l<br>
+                            <strong>Temperos:</strong> colher(es), pitada(s)<br>
+                            <strong>Frutas:</strong> unidade(s), xícara(s)
+                        </small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-success">
+                    <small>
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Dica:</strong> Mantenha as quantidades consistentes. 
+                        Use sempre a mesma unidade para o mesmo ingrediente.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="fas fa-list"></i> Exemplos de Receitas
+            </div>
+            <div class="card-body">
+                <h6 class="small">Bala Baiana Tradicional</h6>
+                <ul class="list-unstyled small text-muted">
+                    <li>• Açúcar: 500g</li>
+                    <li>• Água: 200ml</li>
+                    <li>• Gengibre: 50g</li>
+                    <li>• Cravo: 10g</li>
+                    <li>• Canela: 15g</li>
+                </ul>
+                
+                <h6 class="small mt-3">Bala de Morango</h6>
+                <ul class="list-unstyled small text-muted">
+                    <li>• Açúcar: 500g</li>
+                    <li>• Polpa de morango: 150ml</li>
+                    <li>• Água: 100ml</li>
+                    <li>• Corante vermelho: 2ml</li>
+                    <li>• Essência de morango: 5ml</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let contadorIngredientes = 1;
+
+function adicionarIngrediente() {
+    contadorIngredientes++;
+    
+    const container = document.getElementById('ingredientes-container');
+    const novoIngrediente = document.createElement('div');
+    novoIngrediente.className = 'row mb-3 ingrediente-row';
+    novoIngrediente.innerHTML = `
+        <div class="col-md-4">
+            <label class="form-label">Nome do Ingrediente *</label>
+            <input type="text" name="ingrediente_nome" class="form-control" 
+                   placeholder="Ex: Essência de baunilha" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Quantidade *</label>
+            <input type="number" name="ingrediente_quantidade" class="form-control" 
+                   step="0.01" min="0.01" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Unidade *</label>
+            <select name="ingrediente_unidade" class="form-select" required>
+                <option value="">Selecione...</option>
+                <option value="g">g (gramas)</option>
+                <option value="ml">ml (mililitros)</option>
+                <option value="kg">kg (quilogramas)</option>
+                <option value="l">l (litros)</option>
+                <option value="unidade(s)">unidade(s)</option>
+                <option value="colher(es)">colher(es)</option>
+                <option value="xícara(s)">xícara(s)</option>
+                <option value="pitada(s)">pitada(s)</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="button" class="btn btn-outline-danger form-control" 
+                    onclick="removerIngrediente(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(novoIngrediente);
+    atualizarBotoesRemover();
+}
+
+function removerIngrediente(botao) {
+    const linha = botao.closest('.ingrediente-row');
+    linha.remove();
+    contadorIngredientes--;
+    atualizarBotoesRemover();
+}
+
+function atualizarBotoesRemover() {
+    const linhas = document.querySelectorAll('.ingrediente-row');
+    linhas.forEach((linha, index) => {
+        const botaoRemover = linha.querySelector('button[onclick*="removerIngrediente"]');
+        if (botaoRemover) {
+            // Sempre manter pelo menos 1 ingrediente
+            botaoRemover.disabled = linhas.length <= 1;
+        }
+    });
+}
+
+// Validação do formulário
+document.getElementById('formNovaReceita').addEventListener('submit', function(e) {
+    const ingredientes = document.querySelectorAll('.ingrediente-row');
+    
+    if (ingredientes.length === 0) {
+        e.preventDefault();
+        alert('Adicione pelo menos um ingrediente à receita.');
+        return;
+    }
+    
+    // Verificar se todos os campos obrigatórios estão preenchidos
+    const camposObrigatorios = this.querySelectorAll('input[required], select[required]');
+    let camposVazios = [];
+    
+    camposObrigatorios.forEach(campo => {
+        if (!campo.value.trim()) {
+            camposVazios.push(campo);
+        }
+    });
+    
+    if (camposVazios.length > 0) {
+        e.preventDefault();
+        alert('Preencha todos os campos obrigatórios.');
+        camposVazios[0].focus();
+        return;
+    }
+    
+    // Verificar nomes de ingredientes duplicados
+    const nomesIngredientes = [];
+    const inputsNomes = document.querySelectorAll('input[name="ingrediente_nome"]');
+    
+    for (let input of inputsNomes) {
+        const nome = input.value.trim().toLowerCase();
+        if (nomesIngredientes.includes(nome)) {
+            e.preventDefault();
+            alert('Não é possível ter ingredientes com nomes duplicados.');
+            input.focus();
+            return;
+        }
+        nomesIngredientes.push(nome);
+    }
+    
+    const confirmacao = confirm(
+        'Tem certeza que deseja criar esta receita?\n\n' +
+        'Após criar, a receita estará disponível para:\n' +
+        '• Registro de produção\n' +
+        '• Controle de estoque\n' +
+        '• Vendas específicas'
+    );
+    
+    if (!confirmacao) {
+        e.preventDefault();
+    }
+});
+
+// Inicializar o estado dos botões
+document.addEventListener('DOMContentLoaded', function() {
+    atualizarBotoesRemover();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Estoque - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-boxes"></i> Gestão de Estoque
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Estoque de Insumos -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-seedling"></i> Estoque de Insumos por Sócia
+            </div>
+            <div class="card-body">
+                {% for socia in socias %}
+                <div class="mb-4">
+                    <h5 class="text-primary">{{ socia }}</h5>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Insumo</th>
+                                    <th>Quantidade Atual</th>
+                                    <th>Unidade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set insumos_socia = estoque_insumos | selectattr('socia', 'equalto', socia) | list %}
+                                {% for estoque in insumos_socia %}
+                                <tr>
+                                    <td>{{ estoque.nome_insumo.replace('_', ' ').title() }}</td>
+                                    <td class="{% if estoque.quantidade == 0 %}text-danger{% elif estoque.quantidade < 100 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ estoque.quantidade }}
+                                    </td>
+                                    <td>{{ estoque.unidade }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="editarEstoque('{{ socia }}', '{{ estoque.nome_insumo }}', {{ estoque.quantidade }}, '{{ estoque.unidade }}')">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                
+                                {% if not insumos_socia %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        Nenhum insumo cadastrado para {{ socia }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if not loop.last %}<hr>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estoque de Balas -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-candy-cane"></i> Estoque de Balas Prontas
+            </div>
+            <div class="card-body">
+                {% for receita in receitas %}
+                <div class="mb-3">
+                    <h6>{{ receita.nome }}</h6>
+                    
+                    {% set estoques_receita = estoque_balas | selectattr('receita_id', 'equalto', receita.id) | list %}
+                    
+                    {% for estoque in estoques_receita %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ estoque.detentor }}:</span>
+                        <div>
+                            <span class="badge bg-primary me-2">{{ estoque.quantidade }} balas</span>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="editarEstoqueBala('{{ estoque.detentor }}', {{ receita.id }}, {{ estoque.quantidade }}, '{{ receita.nome }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if not estoques_receita %}
+                    <p class="text-muted small">Nenhum estoque para esta receita</p>
+                    {% endif %}
+                    
+                    {% if not loop.last %}<hr>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Estoque de Insumos -->
+<div class="modal fade" id="modalEditarEstoque" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Estoque de Insumo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('estoque') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="acao" value="atualizar_insumo">
+                    <input type="hidden" name="socia" id="editSocia">
+                    <input type="hidden" name="nome_insumo" id="editNomeInsumo">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Sócia</label>
+                        <input type="text" class="form-control" id="editSociaDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Insumo</label>
+                        <input type="text" class="form-control" id="editInsumoDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nova Quantidade</label>
+                        <div class="input-group">
+                            <input type="number" name="quantidade" class="form-control" 
+                                   id="editQuantidade" step="0.01" min="0" required>
+                            <span class="input-group-text" id="editUnidade"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Atualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Estoque de Balas -->
+<div class="modal fade" id="modalEditarEstoqueBala" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Estoque de Balas</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('estoque') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="acao" value="atualizar_bala">
+                    <input type="hidden" name="detentor" id="editDetentor">
+                    <input type="hidden" name="receita_id" id="editReceitaId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Detentor</label>
+                        <input type="text" class="form-control" id="editDetentorDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Receita</label>
+                        <input type="text" class="form-control" id="editReceitaDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nova Quantidade</label>
+                        <div class="input-group">
+                            <input type="number" name="quantidade" class="form-control" 
+                                   id="editQuantidadeBala" min="0" required>
+                            <span class="input-group-text">balas</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Atualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarEstoque(socia, nomeInsumo, quantidade, unidade) {
+    document.getElementById('editSocia').value = socia;
+    document.getElementById('editNomeInsumo').value = nomeInsumo;
+    document.getElementById('editSociaDisplay').value = socia;
+    document.getElementById('editInsumoDisplay').value = nomeInsumo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    document.getElementById('editQuantidade').value = quantidade;
+    document.getElementById('editUnidade').textContent = unidade;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEditarEstoque'));
+    modal.show();
+}
+
+function editarEstoqueBala(detentor, receitaId, quantidade, nomeReceita) {
+    document.getElementById('editDetentor').value = detentor;
+    document.getElementById('editReceitaId').value = receitaId;
+    document.getElementById('editDetentorDisplay').value = detentor;
+    document.getElementById('editReceitaDisplay').value = nomeReceita;
+    document.getElementById('editQuantidadeBala').value = quantidade;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEditarEstoqueBala'));
+    modal.show();
+}
+</script>
+{% endblock %}

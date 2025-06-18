@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Receita - Gestão Balas Baianas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-utensils"></i> Editar Receita: {{ receita_obj.nome }}
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-edit"></i> Editar Receita
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('atualizar_receita', receita_id=receita_id) }}" id="formReceita">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Atenção:</strong> Alterar a receita afetará todos os cálculos de capacidade de produção. 
+                        Certifique-se de que os valores estão corretos antes de salvar.
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nome da Receita</label>
+                            <input type="text" class="form-control" value="{{ receita_obj.nome }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Balas por Receita</label>
+                            <input type="number" class="form-control" value="{{ receita_obj.balas_por_receita }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Custo por Bala</label>
+                            <input type="text" class="form-control" value="R$ {{ '%.2f'|format(receita_obj.custo_por_bala) }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <h5>Ingredientes Atuais</h5>
+                    <div id="ingredientesAtuais">
+                        {% for ingrediente, quantidade in receita_atual.items() %}
+                        <div class="row mb-3 ingrediente-row">
+                            <div class="col-md-4">
+                                <label class="form-label">Nome do Ingrediente</label>
+                                <input type="text" value="{{ ingrediente.replace('_', ' ').title() }}" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Quantidade</label>
+                                <input type="number" name="qtd_{{ ingrediente }}" 
+                                       value="{{ quantidade }}" 
+                                       class="form-control quantidade-input" 
+                                       step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Unidade</label>
+                                <input type="text" value="{{ unidades_atual[ingrediente] }}" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-outline-danger form-control" 
+                                        onclick="confirmarRemocao('{{ ingrediente }}', {{ loop.index0 }})" disabled>
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5>Adicionar Novos Ingredientes</h5>
+                    <div id="novosIngredientes">
+                        <!-- Novos ingredientes serão adicionados aqui -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-3" onclick="adicionarIngrediente()">
+                        <i class="fas fa-plus"></i> Adicionar Ingrediente
+                    </button>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('receitas_multiplas') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-success" onclick="return confirmarAtualizacao()">
+                            <i class="fas fa-save"></i> Salvar Receita
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações da Receita
+            </div>
+            <div class="card-body">
+                <h6>Receita Atual</h6>
+                <p class="text-muted">Esta receita é usada para calcular:</p>
+                <ul class="text-muted">
+                    <li>Capacidade de produção</li>
+                    <li>Consumo de insumos</li>
+                    <li>Custos de produção</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Unidades Disponíveis</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">
+                            • g (gramas)<br>
+                            • ml (mililitros)<br>
+                            • kg (quilogramas)
+                        </small>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">
+                            • l (litros)<br>
+                            • unidade(s)<br>
+                            • colher(es)
+                        </small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-info">
+                    <small>
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Dica:</strong> Após salvar, as mudanças serão aplicadas imediatamente aos cálculos de produção.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="fas fa-calculator"></i> Calculadora de Custos
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Calcule custos baseados nos ingredientes atuais.</p>
+                
+                <div class="mb-3">
+                    <label class="form-label">Custo Total Estimado</label>
+                    <input type="text" class="form-control" id="custoTotal" placeholder="R$ 0,00" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Custo por Bala</label>
+                    <input type="text" class="form-control" id="custoPorBala" placeholder="R$ 0,00" readonly>
+                </div>
+                
+                <button type="button" class="btn btn-outline-info w-100" onclick="calcularCustos()">
+                    <i class="fas fa-calculator"></i> Calcular Custos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let contadorNovosIngredientes = 0;
+
+function adicionarIngrediente() {
+    contadorNovosIngredientes++;
+    
+    const novosIngredientes = document.getElementById('novosIngredientes');
+    const novoIngredienteHtml = `
+        <div class="row mb-3 novo-ingrediente-row" id="novo-ingrediente-${contadorNovosIngredientes}">
+            <div class="col-md-4">
+                <label class="form-label">Nome do Ingrediente</label>
+                <input type="text" name="novo_ingrediente[]" class="form-control" 
+                       placeholder="Ex: Farinha de trigo" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Quantidade</label>
+                <input type="number" name="nova_quantidade[]" class="form-control" 
+                       step="0.01" min="0" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Unidade</label>
+                <select name="nova_unidade[]" class="form-select" required>
+                    <option value="">Selecione...</option>
+                    <option value="g">g (gramas)</option>
+                    <option value="ml">ml (mililitros)</option>
+                    <option value="kg">kg (quilogramas)</option>
+                    <option value="l">l (litros)</option>
+                    <option value="unidade(s)">unidade(s)</option>
+                    <option value="colher(es)">colher(es)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-danger form-control" 
+                        onclick="removerIngrediente(${contadorNovosIngredientes})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    novosIngredientes.insertAdjacentHTML('beforeend', novoIngredienteHtml);
+}
+
+function removerIngrediente(id) {
+    const elemento = document.getElementById(`novo-ingrediente-${id}`);
+    if (elemento) {
+        elemento.remove();
+    }
+}
+
+function confirmarRemocao(ingrediente, index) {
+    alert('Remoção de ingredientes será implementada em uma futura atualização.');
+}
+
+function confirmarAtualizacao() {
+    const confirmacao = confirm(
+        'Tem certeza que deseja atualizar a receita?\n\n' +
+        'Esta ação irá:\n' +
+        '• Alterar os cálculos de capacidade de produção\n' +
+        '• Modificar o consumo de insumos\n' +
+        '• Afetar todos os cálculos futuros\n\n' +
+        'As mudanças serão aplicadas imediatamente.'
+    );
+    
+    return confirmacao;
+}
+
+function calcularCustos() {
+    // Get all quantity inputs
+    const quantityInputs = document.querySelectorAll('.quantidade-input');
+    let totalCost = 0;
+    
+    // Sample cost calculation (you can implement based on actual ingredient costs)
+    quantityInputs.forEach(input => {
+        const quantity = parseFloat(input.value) || 0;
+        // Assuming average cost per unit (this should be dynamic based on actual costs)
+        const avgCostPerUnit = 0.05; // R$ 0.05 per gram/ml
+        totalCost += quantity * avgCostPerUnit;
+    });
+    
+    const balasPorReceita = {{ receita_obj.balas_por_receita }};
+    const costPerCandy = totalCost / balasPorReceita;
+    
+    document.getElementById('custoTotal').value = `R$ ${totalCost.toFixed(2)}`;
+    document.getElementById('custoPorBala').value = `R$ ${costPerCandy.toFixed(2)}`;
+}
+
+// Add input validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('formReceita');
+    const numberInputs = form.querySelectorAll('input[type="number"]');
+    
+    numberInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.value < 0) {
+                this.value = 0;
+            }
+        });
+    });
+    
+    // Add change listener to quantity inputs for cost calculation
+    const quantityInputs = document.querySelectorAll('.quantidade-input');
+    quantityInputs.forEach(input => {
+        input.addEventListener('change', calcularCustos);
+    });
+    
+    // Initial cost calculation
+    calcularCustos();
+});
+</script>
+{% endblock %}

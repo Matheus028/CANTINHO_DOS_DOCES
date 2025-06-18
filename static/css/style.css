@@ -1,0 +1,595 @@
+/* Dark Theme Custom Styles for Balas Baianas Management System */
+
+:root {
+    --bs-dark: #121212;
+    --bs-dark-rgb: 18, 18, 18;
+    --bs-body-bg: #1a1a1a;
+    --bs-body-color: #e9ecef;
+    --primary-candy: #ff6b6b;
+    --secondary-candy: #4ecdc4;
+    --accent-candy: #ffe66d;
+}
+
+/* Body and general styles */
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Navbar customization */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+.navbar-brand i {
+    color: var(--primary-candy);
+    margin-right: 0.5rem;
+}
+
+.navbar-nav .nav-link {
+    transition: all 0.3s ease;
+    border-radius: 0.375rem;
+    margin: 0 0.2rem;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.navbar-nav .nav-link i {
+    margin-right: 0.5rem;
+    width: 1rem;
+    text-align: center;
+}
+
+/* Card styles */
+.card {
+    border: 1px solid #2d2d2d;
+    background-color: #212529;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.card-header {
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #3d3d3d;
+    font-weight: 600;
+}
+
+/* Dashboard cards */
+.card.bg-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3) !important;
+}
+
+.card.bg-success {
+    background: linear-gradient(135deg, #28a745, #1e7e34) !important;
+}
+
+.card.bg-info {
+    background: linear-gradient(135deg, #17a2b8, #117a8b) !important;
+}
+
+.card.bg-warning {
+    background: linear-gradient(135deg, #ffc107, #d39e00) !important;
+}
+
+/* Recipe card special styling */
+.card.border-success {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.card.border-secondary {
+    border-color: #6c757d !important;
+}
+
+/* Table styles */
+.table-dark {
+    --bs-table-bg: #2d2d2d;
+    --bs-table-striped-bg: #3d3d3d;
+}
+
+.table > tbody > tr > td {
+    vertical-align: middle;
+}
+
+/* Badge styles */
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-warning {
+    background-color: #fd7e14 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-dark {
+    background-color: #495057 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Button styles */
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107, #d39e00);
+    border: none;
+    color: #000;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545, #bd2130);
+    border: none;
+}
+
+.btn-outline-primary:hover {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border-color: #007bff;
+}
+
+.btn-outline-success:hover {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    border-color: #28a745;
+}
+
+.btn-outline-warning:hover {
+    background: linear-gradient(135deg, #ffc107, #d39e00);
+    border-color: #ffc107;
+    color: #000;
+}
+
+.btn-outline-danger:hover {
+    background: linear-gradient(135deg, #dc3545, #bd2130);
+    border-color: #dc3545;
+}
+
+/* Form styles */
+.form-control, .form-select {
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    color: var(--bs-body-color);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #2d2d2d;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    color: var(--bs-body-color);
+}
+
+.form-control::placeholder {
+    color: #adb5bd;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #ced4da;
+}
+
+.form-text {
+    color: #adb5bd;
+}
+
+/* Alert styles */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.1);
+    border-left: 4px solid #17a2b8;
+    color: #bee5eb;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid #ffc107;
+    color: #fff3cd;
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 4px solid #28a745;
+    color: #d4edda;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid #dc3545;
+    color: #f8d7da;
+}
+
+.alert-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-left: 4px solid #0d6efd;
+    color: #b6d4fe;
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease;
+}
+
+/* Ingredient list styling */
+.ingredient-list {
+    max-height: 60px;
+    overflow: hidden;
+}
+
+/* Status indicators */
+.text-success {
+    color: #20c997 !important;
+}
+
+.text-danger {
+    color: #fd7e14 !important;
+}
+
+.text-warning {
+    color: #ffc107 !important;
+}
+
+.text-muted {
+    color: #adb5bd !important;
+}
+
+.text-primary {
+    color: #0dcaf0 !important;
+}
+
+.text-info {
+    color: #17a2b8 !important;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Form validation styles */
+.form-control:invalid {
+    border-color: #dc3545;
+}
+
+.form-control:valid {
+    border-color: #28a745;
+}
+
+/* Modal styles */
+.modal-content {
+    background-color: #212529;
+    border: 1px solid #2d2d2d;
+}
+
+.modal-header {
+    border-bottom: 1px solid #3d3d3d;
+}
+
+.modal-footer {
+    border-top: 1px solid #3d3d3d;
+}
+
+.btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .btn-group .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .ingredient-list {
+        max-height: 80px;
+    }
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #2d2d2d;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #495057;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
+
+/* Candy-themed decorative elements */
+.candy-icon {
+    color: var(--primary-candy);
+    text-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}
+
+/* Production capacity indicators */
+.capacity-indicator {
+    position: relative;
+    overflow: hidden;
+}
+
+.capacity-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+    opacity: 0.7;
+}
+
+/* Financial summary cards */
+.financial-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.financial-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Stock level indicators */
+.stock-ok { 
+    border-left: 4px solid #28a745; 
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.stock-low { 
+    border-left: 4px solid #ffc107; 
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.stock-empty { 
+    border-left: 4px solid #dc3545; 
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* Interactive elements */
+.interactive-row {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.interactive-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: scale(1.02);
+}
+
+/* Recipe card specific animations */
+.card.h-100 {
+    transition: all 0.3s ease;
+}
+
+.card.h-100:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.5);
+}
+
+/* Ingredient row styling */
+.ingrediente-row {
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.ingrediente-row:hover {
+    border-color: #495057;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Button group styling */
+.btn-group .btn {
+    flex: 1;
+}
+
+.btn-group .btn:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Statistics card styling */
+.card .row .col-md-3 {
+    border-right: 1px solid #3d3d3d;
+}
+
+.card .row .col-md-3:last-child {
+    border-right: none;
+}
+
+/* Print styles */
+@media print {
+    .navbar, .btn, .alert {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+    
+    body {
+        color: #000 !important;
+        background: #fff !important;
+    }
+    
+    .card, .modal-content {
+        background-color: #fff !important;
+    }
+    
+    .table-dark {
+        --bs-table-bg: #fff;
+        --bs-table-color: #000;
+    }
+}
+
+/* Accessibility improvements */
+.btn:focus, .form-control:focus, .form-select:focus {
+    outline: 2px solid #0dcaf0;
+    outline-offset: 2px;
+}
+
+/* Error states */
+.has-error .form-control {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.has-success .form-control {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Custom dropdown styling */
+.dropdown-menu-dark {
+    background-color: #212529;
+    border: 1px solid #2d2d2d;
+}
+
+.dropdown-menu-dark .dropdown-item {
+    color: #e9ecef;
+}
+
+.dropdown-menu-dark .dropdown-item:hover {
+    background-color: #3d3d3d;
+}
+
+/* List group dark theme */
+.list-group-item.bg-dark {
+    background-color: #2d2d2d !important;
+    border-color: #3d3d3d;
+}
+
+/* Input group styling */
+.input-group-text {
+    background-color: #2d2d2d;
+    border-color: #3d3d3d;
+    color: var(--bs-body-color);
+}
+
+/* Progress bars */
+.progress {
+    background-color: #2d2d2d;
+}
+
+/* Navigation improvements */
+.navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+}
+
+/* Custom recipe status indicators */
+.recipe-status-active {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.recipe-status-inactive {
+    background: linear-gradient(45deg, #6c757d, #495057);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
