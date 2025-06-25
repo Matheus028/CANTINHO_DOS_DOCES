@@ -1,0 +1,28 @@
+# Arquivo .gitignore COMPLETO
+
+# Ambiente Virtual e variáveis de ambiente
+venv/
+.venv
+env/
+.env
+
+# Arquivos de Banco de Dados SQLite
+# Isso vai ignorar o 'balas_baianas.db' e 'balas_baianas_temp.db'
+*.db
+*.sqlite
+*.sqlite3
+
+# A pasta 'instance' do Flask frequentemente contém o DB. É bom ignorá-la.
+instance/
+
+# Cache do Python e arquivos compilados
+__pycache__/
+*.pyc
+*.pyo
+
+# Arquivos de configuração de IDEs
+.vscode/
+.idea/
+
+# Arquivos de dependências que não precisam ser versionados
+uv.lock

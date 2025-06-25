@@ -2,15 +2,27 @@ from datetime import datetime
 from app import db
 from sqlalchemy import text
 
+
+class Anotacao(db.Model):
+    __tablename__ = 'anotacoes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=True) # Título opcional
+    conteudo = db.Column(db.Text, nullable=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # socia = db.Column(db.String(50)) # Opcional: Se quiser vincular a uma sócia
+
 class Receita(db.Model):
     __tablename__ = 'receitas'
     
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False, unique=True)
     descricao = db.Column(db.Text)
-    balas_por_receita = db.Column(db.Integer, default=40)
+    balas_por_receita = db.Column(db.Integer, default=28) # Ajustei para 28 como na sua imagem
     custo_por_bala = db.Column(db.Float, default=1.0)
     ativa = db.Column(db.Boolean, default=True)
+    is_default = db.Column(db.Boolean, default=False) # <--- NOVO CAMPO: is_default
     criada_em = db.Column(db.DateTime, default=datetime.utcnow)
     atualizada_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -98,6 +110,7 @@ class ContasReceber(db.Model):
     status = db.Column(db.String(20), default='Pendente')  # Pendente, Recebido
     fonte = db.Column(db.String(50))  # iFood vendor name or other source
     criada_em = db.Column(db.DateTime, default=datetime.utcnow)
+    data_recebimento = db.Column(db.DateTime, nullable=True) # Campo para registrar quando foi recebido
     
     venda = db.relationship('Venda')
 
@@ -137,7 +150,7 @@ class TransacaoFinanceira(db.Model):
     __tablename__ = 'transacoes_financeiras'
     
     id = db.Column(db.Integer, primary_key=True)
-    tipo = db.Column(db.String(50), nullable=False)  # Aporte, Compra no crédito, Pagamento, etc.
+    tipo = db.Column(db.String(50), nullable=False)  # Aporte, Compra no crédito, Pagamento, Recebimento Venda, etc.
     descricao = db.Column(db.String(200), nullable=False)
     valor = db.Column(db.Float, nullable=False)
     data_transacao = db.Column(db.DateTime, default=datetime.utcnow)
@@ -162,26 +175,28 @@ def init_default_data():
         receita_tradicional = Receita(
             nome='Bala Baiana Tradicional',
             descricao='Receita tradicional de bala baiana',
-            balas_por_receita=40,
+            balas_por_receita=28, # Ajustei para 28 como na sua imagem
             custo_por_bala=1.0,
-            ativa=True
+            ativa=True,
+            is_default=True # Definir como padrão ao inicializar
         )
         db.session.add(receita_tradicional)
         db.session.flush()
         
-        # Default ingredients
-        ingredientes_default = [
-            ('acucar', 500, 'g'),
-            ('agua', 200, 'ml'),
-            ('gengibre', 50, 'g'),
-            ('cravo', 10, 'g'),
-            ('canela', 15, 'g')
+        # Default ingredients for RECIPE
+        ingredientes_receita_default = [ # Lista para a receita
+            ('acucar cristal', 400, 'g'),
+            ('coco ralado', 100, 'g'),
+            ('leite condensado', 1, 'u'),
+            ('vinagre de alcool', 100, 'ml'),
+            ('manteiga', 15, 'g'),
+            ('glucose', 15, 'g')
         ]
         
-        for nome, qtd, unidade in ingredientes_default:
+        for nome, qtd, unidade in ingredientes_receita_default:
             ingrediente = IngredienteReceita(
                 receita_id=receita_tradicional.id,
-                nome=nome,
+                nome=nome.strip().lower().replace(' ', '_'), # Normaliza nome aqui
                 quantidade=qtd,
                 unidade=unidade
             )
@@ -189,13 +204,13 @@ def init_default_data():
     
     # Default pricing
     precos_default = [
-        ('restaurante', 'preco_unitario', 2.50),
-        ('ifood', 'pacote_3', 8.00),
-        ('ifood', 'pacote_6', 15.00),
-        ('ifood', 'pacote_12', 28.00),
-        ('presencial', 'pacote_3', 7.00),
-        ('presencial', 'pacote_6', 13.00),
-        ('presencial', 'pacote_12', 25.00),
+        ('restaurante', 'preco_unitario', 1.90),
+        ('ifood', 'pacote_3', 9.00),
+        ('ifood', 'pacote_6', 17.00),
+        ('ifood', 'pacote_10', 23.00),
+        ('presencial', 'pacote_3', 6.00),
+        ('presencial', 'pacote_6', 10.00),
+        ('presencial', 'pacote_10', 15.00),
     ]
     
     for canal, tipo, preco in precos_default:
@@ -208,21 +223,31 @@ def init_default_data():
         capital = CapitalGiro(valor=0)
         db.session.add(capital)
     
-    # Default stock for partners
-    socias = ['Rosangela', 'Janira', 'Outros']
+    # Default stock for partners - AGORA USA A LISTA SOCIAS DO ROUTES.PY PARA COERÊNCIA
+    # (Ou defina explicitamente se não quiser depender de SOCIAS de outro arquivo)
+    # Aqui, para garantir que 'Matheus' seja o sócio inicial, vamos deixar explícito.
+    socias_iniciais_para_estoque = ['Rosangela', 'Janira', 'Matheus'] 
     receita_id = Receita.query.filter_by(nome='Bala Baiana Tradicional').first().id
     
-    for socia in socias:
+    # Lista de ingredientes para inicializar o estoque, usando os nomes normalizados e unidades corretas
+    ingredientes_para_estoque_inicial = [
+        ('acucar_cristal', 'g'),
+        ('coco_ralado', 'g'),
+        ('leite_condensado', 'u'),
+        ('vinagre_de_alcool', 'ml'),
+        ('manteiga', 'g'),
+        ('glucose', 'g')
+    ]
+    
+    for socia in socias_iniciais_para_estoque:
         # Initialize ingredient stock
-        ingredientes_default = ['acucar', 'agua', 'gengibre', 'cravo', 'canela']
-        for ingrediente in ingredientes_default:
-            if not EstoqueInsumo.query.filter_by(socia=socia, nome_insumo=ingrediente).first():
-                unidade = 'g' if ingrediente != 'agua' else 'ml'
+        for nome_insumo_normalizado, unidade_insumo in ingredientes_para_estoque_inicial:
+            if not EstoqueInsumo.query.filter_by(socia=socia, nome_insumo=nome_insumo_normalizado).first():
                 estoque = EstoqueInsumo(
                     socia=socia,
-                    nome_insumo=ingrediente,
+                    nome_insumo=nome_insumo_normalizado,
                     quantidade=0,
-                    unidade=unidade
+                    unidade=unidade_insumo 
                 )
                 db.session.add(estoque)
         

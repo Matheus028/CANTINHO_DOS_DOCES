@@ -3,18 +3,22 @@ from app import app, db
 from models import (
     Receita, IngredienteReceita, EstoqueInsumo, EstoqueBala, 
     Producao, Venda, ContasReceber, LucrosPendentes, CapitalGiro, 
-    PrecoVenda, TransacaoFinanceira, ContasPagar, init_default_data
+    PrecoVenda, TransacaoFinanceira, ContasPagar,Anotacao, init_default_data
 )
-from datetime import datetime, date
+from datetime import datetime, date # Importe date se ainda não estiver
 import logging
+import re
+
+# Configure logging for routes
+logging.basicConfig(level=logging.DEBUG) 
 
 # Initialize default data on first run
 with app.app_context():
     init_default_data()
 
 # Constants
-SOCIAS = ['Rosangela', 'Janira', 'Outros']
-VENDEDORES_IFOOD = ['Rosangela', 'Janira']
+SOCIAS = ['Rosangela', 'Janira', 'Matheus'] 
+VENDEDORES_IFOOD = ['Rosangela', 'Janira'] 
 
 @app.route('/')
 def index():
@@ -54,7 +58,7 @@ def index():
         # Get overdue accounts
         contas_vencidas = ContasReceber.query.filter(
             ContasReceber.status == 'Pendente',
-            ContasReceber.data_vencimento < date.today()
+            ContasReceber.data_vencimento < date.today() # date.today() está ok aqui para a notificação
         ).all()
         
         # Prepare data structure for template compatibility
@@ -69,12 +73,12 @@ def index():
         }
         
         return render_template('index.html',
-                             dados=dados,
-                             total_balas_estoque=total_balas_estoque,
-                             capacidades_atuais=capacidades_atuais,
-                             ultimas_vendas=ultimas_vendas,
-                             contas_vencidas=contas_vencidas)
-                             
+                               dados=dados,
+                               total_balas_estoque=total_balas_estoque,
+                               capacidades_atuais=capacidades_atuais,
+                               ultimas_vendas=ultimas_vendas,
+                               contas_vencidas=contas_vencidas) # Passa as contas vencidas para o template
+                               
     except Exception as e:
         logging.error(f"Error in index route: {e}")
         flash('Erro ao carregar dashboard', 'error')
@@ -170,10 +174,10 @@ def editar_receita(receita_id):
         unidades_atual[ing.nome] = ing.unidade
     
     return render_template('receita.html',
-                         receita_obj=receita,
-                         receita_atual=receita_atual,
-                         unidades_atual=unidades_atual,
-                         receita_id=receita_id)
+                           receita_obj=receita,
+                           receita_atual=receita_atual,
+                           unidades_atual=unidades_atual,
+                           receita_id=receita_id)
 
 @app.route('/receita/<int:receita_id>/atualizar', methods=['POST'])
 def atualizar_receita(receita_id):
@@ -415,12 +419,12 @@ def producao():
         dados = {'estoque_insumos': {}}
     
     return render_template('producao.html',
-                         socias=SOCIAS,
-                         receitas=receitas,
-                         receita_padrao=receita_dict,
-                         unidades=unidades,
-                         balas_por_receita=receita_padrao.balas_por_receita if receita_padrao else 40,
-                         dados=dados)
+                           socias=SOCIAS,
+                           receitas=receitas,
+                           receita_padrao=receita_dict,
+                           unidades=unidades,
+                           balas_por_receita=receita_padrao.balas_por_receita if receita_padrao else 40,
+                           dados=dados)
 
 @app.route('/vendas', methods=['GET', 'POST'])
 def vendas():
@@ -428,9 +432,9 @@ def vendas():
     if request.method == 'POST':
         try:
             socia_produtora = request.form.get('socia_produtora')
-            estoque_saida = request.form.get('estoque_saida')
+            estoque_saida = request.form.get('estoque_saida') # Quem tinha a bala no estoque
             canal_venda = request.form.get('canal_venda')
-            receita_id = int(request.form.get('receita_id', 1))  # Default to first recipe
+            receita_id = int(request.form.get('receita_id', 1)) # Default to first recipe
             
             # Get quantity and price based on channel
             if canal_venda == 'restaurante':
@@ -447,7 +451,6 @@ def vendas():
                 
                 valor_bruto = preco_obj.preco
                 # Extract quantity from package name
-                import re
                 match = re.search(r'(\d+)', tipo_pacote)
                 quantidade_balas = int(match.group(1)) if match else 1
             
@@ -463,16 +466,18 @@ def vendas():
             
             # Calculate costs and profit
             receita = Receita.query.get(receita_id)
-            custo = quantidade_balas * receita.custo_por_bala
+            custo_total_balas_vendidas = quantidade_balas * receita.custo_por_bala
             
             # Apply iFood fees if needed
-            lucro_liquido = valor_bruto - custo
+            valor_liquido_para_receber_ifood = 0 # Inicializa para evitar UnboundLocalError
+            lucro_liquido_venda = valor_bruto - custo_total_balas_vendidas
+            
             if canal_venda == 'ifood':
                 taxa_percentual = valor_bruto * 0.262
                 taxa_fixa = 1.00 if valor_bruto < 20.00 else 0.00
                 taxa_total = taxa_percentual + taxa_fixa
-                valor_liquido = valor_bruto - taxa_total
-                lucro_liquido = valor_liquido - custo
+                valor_liquido_para_receber_ifood = valor_bruto - taxa_total # Valor que a empresa receberá do iFood
+                lucro_liquido_venda = valor_liquido_para_receber_ifood - custo_total_balas_vendidas
             
             # Update stock
             estoque_bala.quantidade -= quantidade_balas
@@ -480,51 +485,93 @@ def vendas():
             # Create sale record
             venda = Venda(
                 socia_produtora=socia_produtora,
-                estoque_saida=estoque_saida,
+                estoque_saida=estoque_saida, # Quem tinha a bala no estoque
                 receita_id=receita_id,
                 canal_venda=canal_venda,
                 tipo_pacote=tipo_pacote,
                 quantidade_balas=quantidade_balas,
                 valor_bruto=valor_bruto,
-                custo=custo,
-                lucro_liquido=lucro_liquido
+                custo=custo_total_balas_vendidas, 
+                lucro_liquido=lucro_liquido_venda
             )
             
-            # iFood specific fields
+            # Adicionamos a venda ANTES do flush para que venda.id esteja disponível
+            db.session.add(venda)
+            db.session.flush() 
+
+            # Garante que CapitalGiro exista para operações futuras (seja por aporte ou recebimento)
+            capital = CapitalGiro.query.first()
+            if not capital:
+                capital = CapitalGiro(valor=0) 
+                db.session.add(capital)
+                db.session.flush() 
+            
+            # LÓGICA ESPECÍFICA POR CANAL PARA ENTRADA NO CAIXA E LUCROS PENDENTES
+            # IMPORTANTE: A SAÍDA DE CUSTO NÃO É REGISTRADA AQUI. Ela é coberta pela compra de insumos.
+            
             if canal_venda == 'ifood':
-                venda.fonte_ifood = request.form.get('fonte_ifood')
-                venda.id_recebivel = request.form.get('id_recebivel')
-                data_prevista_str = request.form.get('data_prevista')
-                if data_prevista_str:
-                    venda.data_prevista = datetime.strptime(data_prevista_str, '%Y-%m-%d').date()
+                # Valida e atribui id_recebivel aqui, antes de usar na ContaReceber
+                id_recebivel_form = request.form.get('id_recebivel')
+                if id_recebivel_form: 
+                    venda.id_recebivel = id_recebivel_form.strip()
+                else:
+                    venda.id_recebivel = None 
                 
-                # Create receivable account
+                # CRIA A CONTA A RECEBER (SE ID FOR VÁLIDO)
                 if venda.id_recebivel:
                     conta = ContasReceber(
-                        venda_id=venda.id,
+                        venda_id=venda.id, 
                         descricao=f'iFood - {venda.id_recebivel}',
-                        valor=valor_bruto,
+                        valor=valor_liquido_para_receber_ifood, 
                         data_vencimento=venda.data_prevista or date.today(),
                         fonte=venda.fonte_ifood,
                         status='Pendente'
                     )
                     db.session.add(conta)
-            
-            db.session.add(venda)
-            
-            # Add profit to pending profits
-            if lucro_liquido > 0:
-                lucro_pendente = LucrosPendentes(
-                    socia=socia_produtora,
-                    descricao=f'Venda {canal_venda} - {quantidade_balas} balas',
-                    valor=lucro_liquido,
-                    origem=f'Venda #{venda.id}',
-                    status='Pendente'
+                else: # Se o ID recebível iFood não for fornecido, reverte TUDO e retorna erro
+                    flash('ID Recebível iFood não fornecido para venda iFood.', 'error')
+                    db.session.rollback() 
+                    return redirect(url_for('vendas'))
+
+                # Lucros Pendentes de iFood SÓ SERÃO CRIADOS QUANDO A CONTA A RECEBER FOR CONFIRMADA
+                # Capital de Giro NÃO é impactado pelo valor da venda aqui.
+            else: # Vendas Não iFood (Direta, Restaurante, Presencial) - Dinheiro entra na hora
+                # ENTRADA DE VALOR BRUTO NO CAPITAL DE GIRO
+                capital.valor += valor_bruto # Valor total da venda entra no Capital de Giro
+                
+                transacao_venda_imediata = TransacaoFinanceira(
+                    tipo=f'Venda {canal_venda}', 
+                    descricao=f'Venda {canal_venda} - {quantidade_balas} balas (id Venda: {venda.id})',
+                    valor=valor_bruto # Valor total da venda entra na TransacaoFinanceira
                 )
-                db.session.add(lucro_pendente)
+                db.session.add(transacao_venda_imediata)
+                
+                # Divisão de Lucros (50% para "Matheus", 50% para Produtora) - Registrado IMEDIATAMENTE
+                if lucro_liquido_venda > 0:
+                    lucro_matheus = lucro_liquido_venda * 0.50
+                    lucro_produtora = lucro_liquido_venda * 0.50
+
+                    lucro_pendente_matheus = LucrosPendentes(
+                        socia='Matheus', 
+                        descricao=f'Lucro Venda {canal_venda} ({quantidade_balas} balas) - Produtor: {socia_produtora}',
+                        valor=lucro_matheus,
+                        origem=f'Venda #{venda.id}', 
+                        status='Pendente'
+                    )
+                    db.session.add(lucro_pendente_matheus)
+
+                    if socia_produtora.lower() != 'matheus':
+                        lucro_pendente_produtora = LucrosPendentes(
+                            socia=socia_produtora,
+                            descricao=f'Lucro Venda {canal_venda} ({quantidade_balas} balas) - Vendedor: {estoque_saida}',
+                            valor=lucro_produtora,
+                            origem=f'Venda #{venda.id}',
+                            status='Pendente'
+                        )
+                        db.session.add(lucro_pendente_produtora)
             
             db.session.commit()
-            flash(f'Venda registrada com sucesso! Lucro: R$ {lucro_liquido:.2f}', 'success')
+            flash(f'Venda registrada com sucesso! Lucro: R$ {lucro_liquido_venda:.2f}', 'success')
             
         except Exception as e:
             db.session.rollback()
@@ -555,12 +602,12 @@ def vendas():
     dados = {'estoque_balas_prontas': estoque_balas}
     
     return render_template('vendas.html',
-                         socias=SOCIAS,
-                         receitas=receitas,
-                         detentores_estoque=detentores_estoque,
-                         precos_venda=precos_venda,
-                         vendedores_ifood=VENDEDORES_IFOOD,
-                         dados=dados)
+                           socias=SOCIAS,
+                           receitas=receitas,
+                           detentores_estoque=detentores_estoque,
+                           precos_venda=precos_venda,
+                           vendedores_ifood=VENDEDORES_IFOOD,
+                           dados=dados)
 
 @app.route('/historico-vendas')
 def historico_vendas():
@@ -577,6 +624,8 @@ def historico_vendas():
 @app.route('/financeiro', methods=['GET', 'POST'])
 def financeiro():
     """Financial management"""
+    # Se houver um POST, ele será para adicionar lucro, aporte ou compra a crédito.
+    # A lógica de processar contas a receber vencidas será em uma rota separada.
     if request.method == 'POST':
         try:
             acao = request.form.get('acao')
@@ -596,7 +645,7 @@ def financeiro():
                 db.session.add(lucro)
                 db.session.commit()
                 flash(f'Lucro de R$ {valor:.2f} adicionado para {socia}', 'success')
-            
+                
             elif acao == 'pagar_lucro':
                 lucro_id = int(request.form.get('lucro_id'))
                 lucro = LucrosPendentes.query.get(lucro_id)
@@ -604,7 +653,7 @@ def financeiro():
                     lucro.status = 'Pago'
                     db.session.commit()
                     flash('Lucro marcado como pago', 'success')
-            
+                
             elif acao == 'adicionar_aporte':
                 valor = float(request.form.get('valor'))
                 descricao = request.form.get('descricao')
@@ -656,22 +705,6 @@ def financeiro():
                 db.session.commit()
                 flash(f'Compra no crédito de R$ {valor:.2f} registrada', 'success')
                 
-            elif acao == 'adicionar_lucro':
-                socia = request.form.get('socia')
-                descricao = request.form.get('descricao')
-                valor = float(request.form.get('valor'))
-                
-                lucro = LucrosPendentes(
-                    socia=socia,
-                    descricao=descricao,
-                    valor=valor,
-                    origem='Adição Manual',
-                    status='Pendente'
-                )
-                db.session.add(lucro)
-                db.session.commit()
-                flash(f'Lucro de R$ {valor:.2f} adicionado para {socia}', 'success')
-                
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error in financial: {e}")
@@ -693,13 +726,174 @@ def financeiro():
             lucros_pendentes_dict[lucro.socia] = 0
         lucros_pendentes_dict[lucro.socia] += lucro.valor
     
+    # Contas a receber vencidas (apenas para alerta visual)
+    contas_receber_vencidas_para_alerta = ContasReceber.query.filter(
+        ContasReceber.status == 'Pendente',
+        ContasReceber.data_vencimento < date.today()
+    ).all()
+
     return render_template('financeiro.html',
-                         capital=capital,
-                         lucros_pendentes=lucros_pendentes_dict,
-                         contas_receber=contas_receber,
-                         contas_pagar=contas_pagar,
-                         transacoes=transacoes,
-                         socias=SOCIAS)
+                           capital=capital,
+                           lucros_pendentes=lucros_pendentes_dict,
+                           contas_receber=contas_receber,
+                           contas_pagar=contas_pagar,
+                           transacoes=transacoes,
+                           socias=SOCIAS,
+                           date=date,
+                           contas_receber_vencidas_para_alerta=contas_receber_vencidas_para_alerta
+                          )
+
+# NOVA ROTA: Processamento de Contas a Receber Vencidas
+@app.route('/financeiro/processar_contas_receber', methods=['POST'])
+def processar_contas_receber():
+    """Processa todas as contas a receber vencidas, movendo o valor para o capital de giro."""
+    try:
+        contas_processadas_count = 0
+        valor_total_processado = 0
+        
+        hoje = date.today() # A data atual do sistema
+        
+        # Buscar contas a receber que estão pendentes e vencidas (ou na data atual)
+        contas_a_processar = ContasReceber.query.filter(
+            ContasReceber.status == 'Pendente',
+            ContasReceber.data_vencimento <= hoje # Inclui contas vencidas e as que vencem hoje
+        ).all()
+        
+        capital = CapitalGiro.query.first()
+        if not capital:
+            capital = CapitalGiro(valor=0)
+            db.session.add(capital)
+            db.session.flush()
+
+        for conta in contas_a_processar:
+            if conta.status == 'Pendente': # Double-check, just in case
+                conta.status = 'Recebido'
+                conta.data_recebimento = datetime.utcnow()
+                
+                capital.valor += conta.valor
+                valor_total_processado += conta.valor
+                contas_processadas_count += 1
+
+                transacao = TransacaoFinanceira(
+                    tipo='Recebimento Automático (iFood)', 
+                    descricao=f'Recebimento automático: {conta.descricao} (ID Conta: {conta.id})',
+                    valor=conta.valor
+                )
+                db.session.add(transacao)
+
+                # Divisão de Lucros para esta venda iFood (agora que o dinheiro entrou!)
+                venda_original = Venda.query.get(conta.venda_id)
+                if venda_original and venda_original.lucro_liquido > 0:
+                    lucro_liquido_venda = venda_original.lucro_liquido
+                    lucro_matheus = lucro_liquido_venda * 0.50
+                    lucro_produtora = lucro_liquido_venda * 0.50
+
+                    lucro_pendente_matheus = LucrosPendentes(
+                        socia='Matheus', 
+                        descricao=f'Lucro Venda iFood (Recebido Auto) - Produtor: {venda_original.socia_produtora}',
+                        valor=lucro_matheus,
+                        origem=f'Recebimento Venda #{venda_original.id}', 
+                        status='Pendente'
+                    )
+                    db.session.add(lucro_pendente_matheus)
+
+                    if venda_original.socia_produtora.lower() != 'matheus':
+                        lucro_pendente_produtora = LucrosPendentes(
+                            socia=venda_original.socia_produtora,
+                            descricao=f'Lucro Venda iFood (Recebido Auto) - Vendedor: {venda_original.estoque_saida}',
+                            valor=lucro_produtora,
+                            origem=f'Recebimento Venda #{venda_original.id}',
+                            status='Pendente'
+                        )
+                        db.session.add(lucro_pendente_produtora)
+        
+        db.session.commit()
+        if contas_processadas_count > 0:
+            flash(f'{contas_processadas_count} conta(s) a receber vencida(s) processada(s) automaticamente. Total: R$ {valor_total_processado:.2f}', 'success')
+        else:
+            flash('Nenhuma conta a receber vencida para processar.', 'info')
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Erro ao processar contas a receber vencidas: {e}")
+        flash('Erro ao processar contas a receber vencidas', 'error')
+    
+    return redirect(url_for('financeiro'))
+
+
+# Rota para confirmar recebimento de ContasReceber (principalmente iFood)
+# Esta rota continua sendo para CONFIRMAR UMA ÚNICA CONTA MANUALMENTE
+@app.route('/financeiro/confirmar_recebimento/<int:conta_id>', methods=['POST'])
+def confirmar_recebimento(conta_id):
+    """Confirma o recebimento de uma conta a receber (ex: iFood)"""
+    try:
+        conta = ContasReceber.query.get(conta_id)
+        if not conta:
+            flash('Conta a receber não encontrada', 'error')
+            return redirect(url_for('financeiro'))
+
+        if conta.status == 'Recebido':
+            flash('Conta já foi recebida', 'info')
+            return redirect(url_for('financeiro'))
+
+        # Atualiza status da conta a receber
+        conta.status = 'Recebido'
+        conta.data_recebimento = datetime.utcnow()
+
+        # Atualiza Capital de Giro APENAS NESTE MOMENTO (valor que entra do iFood)
+        capital = CapitalGiro.query.first()
+        if not capital: 
+            capital = CapitalGiro(valor=0)
+            db.session.add(capital)
+            db.session.flush() 
+
+        capital.valor += conta.valor # Adiciona o valor da conta a receber ao Capital de Giro
+
+        # Registra Transação Financeira como entrada de caixa
+        transacao = TransacaoFinanceira(
+            tipo='Recebimento Venda', 
+            descricao=f'Recebimento: {conta.descricao} (ID Conta: {conta.id})',
+            valor=conta.valor # Valor positivo entrando no caixa
+        )
+        db.session.add(transacao)
+
+        # Divisão de Lucros para esta venda iFood (agora que o dinheiro entrou!)
+        # Precisa buscar a venda original para pegar o lucro líquido
+        venda_original = Venda.query.get(conta.venda_id)
+        if venda_original and venda_original.lucro_liquido > 0:
+            lucro_liquido_venda = venda_original.lucro_liquido
+            lucro_matheus = lucro_liquido_venda * 0.50
+            lucro_produtora = lucro_liquido_venda * 0.50
+
+            # Lucro para Matheus
+            lucro_pendente_matheus = LucrosPendentes(
+                socia='Matheus', 
+                descricao=f'Lucro Venda iFood (Recebido) - Produtor: {venda_original.socia_produtora}',
+                valor=lucro_matheus,
+                origem=f'Recebimento Venda #{venda_original.id}', 
+                status='Pendente' # Marcado como pendente para distribuição posterior
+            )
+            db.session.add(lucro_pendente_matheus)
+
+            # Lucro para a Sócia Produtora (se não for o Matheus)
+            if venda_original.socia_produtora.lower() != 'matheus':
+                lucro_pendente_produtora = LucrosPendentes(
+                    socia=venda_original.socia_produtora,
+                    descricao=f'Lucro Venda iFood (Recebido) - Vendedor: {venda_original.estoque_saida}',
+                    valor=lucro_produtora,
+                    origem=f'Recebimento Venda #{venda_original.id}',
+                    status='Pendente'
+                )
+                db.session.add(lucro_pendente_produtora)
+
+        db.session.commit()
+        flash(f'Recebimento de R$ {conta.valor:.2f} confirmado.', 'success')
+        return redirect(url_for('financeiro'))
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error confirming receipt: {e}")
+        flash('Erro ao confirmar recebimento', 'error')
+        return redirect(url_for('financeiro'))
 
 @app.route('/financeiro/pagar/<int:conta_id>', methods=['POST'])
 def pagar_conta(conta_id):
@@ -708,19 +902,19 @@ def pagar_conta(conta_id):
         conta = ContasPagar.query.get(conta_id)
         if not conta:
             return jsonify({'success': False, 'message': 'Conta não encontrada'})
-        
+
         if conta.status == 'Pago':
             return jsonify({'success': False, 'message': 'Conta já foi paga'})
-        
+
         # Update account status
         conta.status = 'Pago'
         conta.data_pagamento = datetime.utcnow()
-        
+
         # Update capital
         capital = CapitalGiro.query.first()
         if capital:
             capital.valor -= conta.valor
-        
+
         # Record transaction
         transacao = TransacaoFinanceira(
             tipo='Pagamento',
@@ -729,7 +923,7 @@ def pagar_conta(conta_id):
         )
         db.session.add(transacao)
         db.session.commit()
-        
+
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -742,16 +936,16 @@ def configuracoes_precos():
     if request.method == 'POST':
         try:
             acao = request.form.get('acao')
-            
+
             if acao == 'salvar_preco':
                 canal = request.form.get('canal')
                 tipo_pacote = request.form.get('tipo_pacote')
                 qtd_balas = int(request.form.get('qtd_balas'))
                 preco = float(request.form.get('preco'))
-                
+
                 # Check if price configuration already exists
                 preco_existente = PrecoVenda.query.filter_by(canal=canal, tipo_pacote=tipo_pacote).first()
-                
+
                 if preco_existente:
                     preco_existente.quantidade_balas = qtd_balas
                     preco_existente.preco = preco
@@ -767,14 +961,14 @@ def configuracoes_precos():
                     )
                     db.session.add(novo_preco)
                     flash('Novo preço adicionado com sucesso', 'success')
-                
+
                 db.session.commit()
-                
+
             elif acao == 'atualizar_preco':
                 preco_id = int(request.form.get('preco_id'))
                 qtd_balas = int(request.form.get('qtd_balas'))
                 preco = float(request.form.get('preco'))
-                
+
                 preco_obj = PrecoVenda.query.get(preco_id)
                 if preco_obj:
                     preco_obj.quantidade_balas = qtd_balas
@@ -782,17 +976,17 @@ def configuracoes_precos():
                     preco_obj.updated_at = datetime.utcnow()
                     db.session.commit()
                     flash('Preço atualizado com sucesso', 'success')
-                
+
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error in price configuration: {e}")
             flash('Erro ao salvar configuração de preço', 'error')
-        
+
         return redirect(url_for('configuracoes_precos'))
-    
+
     # GET request
     precos_atuais = PrecoVenda.query.order_by(PrecoVenda.canal, PrecoVenda.tipo_pacote).all()
-    
+
     return render_template('configuracoes_precos.html', precos_atuais=precos_atuais)
 
 @app.route('/configuracoes-precos/toggle/<int:preco_id>', methods=['POST'])
@@ -802,13 +996,13 @@ def toggle_preco(preco_id):
         preco = PrecoVenda.query.get(preco_id)
         if not preco:
             return jsonify({'success': False, 'message': 'Preço não encontrado'})
-        
+
         preco.ativo = not preco.ativo
         preco.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
         status = 'ativado' if preco.ativo else 'desativado'
-        return jsonify({'success': True, 'message': f'Preço {status} com sucesso'})
+        return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error toggling price: {e}")
@@ -820,12 +1014,12 @@ def estoque():
     if request.method == 'POST':
         try:
             acao = request.form.get('acao')
-            
+
             if acao == 'atualizar_insumo':
                 socia = request.form.get('socia')
                 nome_insumo = request.form.get('nome_insumo')
                 quantidade = float(request.form.get('quantidade'))
-                
+
                 estoque = EstoqueInsumo.query.filter_by(socia=socia, nome_insumo=nome_insumo).first()
                 if estoque:
                     estoque.quantidade = quantidade
@@ -833,12 +1027,12 @@ def estoque():
                     flash('Estoque de insumo atualizado', 'success')
                 else:
                     flash('Insumo não encontrado', 'error')
-            
+
             elif acao == 'atualizar_bala':
                 detentor = request.form.get('detentor')
                 receita_id = int(request.form.get('receita_id'))
                 quantidade = int(request.form.get('quantidade'))
-                
+
                 estoque = EstoqueBala.query.filter_by(detentor=detentor, receita_id=receita_id).first()
                 if estoque:
                     estoque.quantidade = quantidade
@@ -846,24 +1040,24 @@ def estoque():
                     flash('Estoque de balas atualizado', 'success')
                 else:
                     flash('Estoque não encontrado', 'error')
-                    
+
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error in stock: {e}")
             flash('Erro ao atualizar estoque', 'error')
-        
+
         return redirect(url_for('estoque'))
-    
+
     # GET request
     receitas = Receita.query.filter_by(ativa=True).all()
     estoque_insumos = EstoqueInsumo.query.all()
     estoque_balas = EstoqueBala.query.all()
-    
+
     return render_template('estoque.html',
-                         socias=SOCIAS,
-                         receitas=receitas,
-                         estoque_insumos=estoque_insumos,
-                         estoque_balas=estoque_balas)
+                           socias=SOCIAS,
+                           receitas=receitas,
+                           estoque_insumos=estoque_insumos,
+                           estoque_balas=estoque_balas)
 
 def calcular_capacidade_producao(socia, receita_id=None):
     """Calculate production capacity for a partner"""
@@ -871,32 +1065,95 @@ def calcular_capacidade_producao(socia, receita_id=None):
         receita = Receita.query.get(receita_id)
     else:
         receita = Receita.query.filter_by(ativa=True).first()
-    
+
     if not receita:
         return {'receitas': 0, 'balas': 0}
-    
+
     capacidade_minima = float('inf')
-    
+
     for ingrediente in receita.ingredientes:
         estoque = EstoqueInsumo.query.filter_by(
             socia=socia,
             nome_insumo=ingrediente.nome
         ).first()
-        
+
         if not estoque or estoque.quantidade <= 0:
             capacidade_minima = 0
             break
-        
+
         receitas_possiveis = estoque.quantidade // ingrediente.quantidade
         capacidade_minima = min(capacidade_minima, receitas_possiveis)
-    
+
     if capacidade_minima == float('inf'):
         capacidade_minima = 0
-    
+
     return {
         'receitas': int(capacidade_minima),
         'balas': int(capacidade_minima * receita.balas_por_receita)
     }
+
+
+# ... (imports existentes) ...
+# from models import Anotacao # Certifique-se de importar o novo modelo
+
+@app.route('/anotacoes', methods=['GET', 'POST'])
+def gerenciar_anotacoes():
+    if request.method == 'POST':
+        try:
+            titulo = request.form.get('titulo')
+            conteudo = request.form.get('conteudo')
+            # socia = request.form.get('socia') # Se você adicionar o campo sócia
+
+            if not conteudo:
+                flash('A anotação não pode estar vazia!', 'error')
+                return redirect(url_for('gerenciar_anotacoes'))
+
+            nova_anotacao = Anotacao(
+                titulo=titulo or 'Sem Título', # Se o título for opcional
+                conteudo=conteudo
+                # socia=socia # Se você adicionar o campo sócia
+            )
+            db.session.add(nova_anotacao)
+            db.session.commit()
+            flash('Anotação adicionada com sucesso!', 'success')
+            return redirect(url_for('gerenciar_anotacoes'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Erro ao adicionar anotação: {e}")
+            flash('Erro ao adicionar anotação', 'error')
+
+    anotacoes = Anotacao.query.order_by(Anotacao.data_criacao.desc()).all()
+    return render_template('anotacoes.html', anotacoes=anotacoes)
+
+# ... (código existente da rota gerenciar_anotacoes) ...
+
+# Nova rota para excluir anotação
+@app.route('/anotacoes/excluir/<int:anotacao_id>', methods=['POST'])
+def excluir_anotacao(anotacao_id):
+    """Exclui uma anotação pelo ID."""
+    try:
+        anotacao = Anotacao.query.get_or_404(anotacao_id) # Busca a anotação ou retorna 404
+        db.session.delete(anotacao) # Marca a anotação para exclusão
+        db.session.commit() # Confirma a exclusão no banco de dados
+        flash('Anotação excluída com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback() # Em caso de erro, reverte a operação
+        logging.error(f"Erro ao excluir anotação {anotacao_id}: {e}")
+        flash('Erro ao excluir anotação', 'error')
+    
+    return redirect(url_for('gerenciar_anotacoes'))
+
+# ... (restante do seu routes.py) ...
+
+# ... (outras rotas) ...
+
+# Não esqueça de adicionar a chamada db.create_all() para o novo modelo no app.py
+# (se você ainda não o fez na ultima alteração)
+# with app.app_context():
+#     import models # Isso já existe
+#     db.create_all() # Isso já existe
+
+
 
 # API endpoints for JavaScript
 @app.route('/api/capacidade/<socia>')

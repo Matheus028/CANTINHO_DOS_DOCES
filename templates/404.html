@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Página Não Encontrada{% endblock %}
+{% block content %}
+<div class="container mt-5 text-center">
+    <h1>404 - Não Encontrado</h1>
+    <p>A URL que você tentou acessar não foi encontrada no servidor.</p>
+    <p><a href="{{ url_for('index') }}" class="btn btn-primary">Voltar para o Dashboard</a></p>
+</div>
+{% endblock %}

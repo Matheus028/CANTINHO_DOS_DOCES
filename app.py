@@ -32,5 +32,5 @@ db.init_app(app)
 with app.app_context():
     # Import models to create tables
     import models
-    db.create_all()
-    logging.info("Database tables created")
+    #db.create_all()
+    logging.info("Database tables created (via Alembic) or updated")

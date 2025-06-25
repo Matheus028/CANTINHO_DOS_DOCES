@@ -33,8 +33,8 @@
                         <label class="form-label">Receita</label>
                         <select name="receita_id" id="receitaId" class="form-select" required>
                             <option value="">Selecione...</option>
-                            {% for receita in receitas %}
-                            <option value="{{ receita.id }}">{{ receita.nome }}</option>
+                            {% for receita_item in receitas %} {# Renomeado para evitar conflito com 'receita' no loop de ingredientes #}
+                            <option value="{{ receita_item.id }}" data-balas-por-receita="{{ receita_item.balas_por_receita }}">{{ receita_item.nome }}</option> {# <--- ALTERADO AQUI #}
                             {% endfor %}
                         </select>
                     </div>
@@ -48,7 +48,7 @@
                         <label class="form-label">Receitas a Produzir</label>
                         <input type="number" name="receitas_a_produzir" id="receitasProduzir" class="form-control" min="0" required>
                         <div class="form-text">
-                            <span id="balasResultado"></span>
+                            <span id="balasResultado">= 0 balas</span> {# Adicionado valor inicial #}
                         </div>
                     </div>
                     
@@ -67,16 +67,16 @@
                 <i class="fas fa-info-circle"></i> Receitas Disponíveis
             </div>
             <div class="card-body">
-                {% for receita in receitas %}
+                {% for receita_item in receitas %} {# Renomeado para evitar conflito #}
                 <div class="mb-3">
-                    <h6>{{ receita.nome }}</h6>
-                    <p class="text-muted">{{ receita.descricao or 'Sem descrição' }}</p>
-                    <small class="text-info">Produz {{ receita.balas_por_receita }} balas por receita</small>
+                    <h6>{{ receita_item.nome }}</h6>
+                    <p class="text-muted">{{ receita_item.descricao or 'Sem descrição' }}</p>
+                    <small class="text-info">Produz {{ receita_item.balas_por_receita }} balas por receita</small>
                     
                     <div class="mt-2">
                         <h6 class="small">Ingredientes:</h6>
                         <ul class="list-group list-group-flush">
-                            {% for ingrediente in receita.ingredientes %}
+                            {% for ingrediente in receita_item.ingredientes %}
                             <li class="list-group-item d-flex justify-content-between bg-dark text-light">
                                 <span>{{ ingrediente.nome.replace('_', ' ').title() }}:</span>
                                 <strong>{{ ingrediente.quantidade }} {{ ingrediente.unidade }}</strong>
@@ -95,23 +95,25 @@
 </div>
 
 <script>
-// Production capacity calculation
-document.getElementById('sociaProdutora').addEventListener('change', updateCapacity);
-document.getElementById('receitaId').addEventListener('change', updateCapacity);
-
-document.getElementById('receitasProduzir').addEventListener('input', function() {
-    const receitas = parseInt(this.value) || 0;
+// Função para atualizar o resultado de "balas a produzir"
+function updateBalasResultado() {
+    const receitasInput = document.getElementById('receitasProduzir');
+    const receitas = parseInt(receitasInput.value) || 0;
     const receitaSelect = document.getElementById('receitaId');
     const selectedOption = receitaSelect.selectedOptions[0];
     
-    if (selectedOption) {
-        // Get balas per recipe from data attribute or make API call
-        const balasPorReceita = 40; // Default value, should be dynamic
-        const balas = receitas * balasPorReceita;
-        document.getElementById('balasResultado').textContent = `= ${balas} balas`;
-    }
-});
+    let balasPorReceita = 0; 
 
+    // Verifica se uma receita foi selecionada e se tem o atributo data-balas-por-receita
+    if (selectedOption && selectedOption.value && selectedOption.dataset.balasPorReceita) {
+        balasPorReceita = parseInt(selectedOption.dataset.balasPorReceita);
+    }
+    
+    const balas = receitas * balasPorReceita;
+    document.getElementById('balasResultado').textContent = `= ${balas} balas`;
+}
+
+// Production capacity calculation
 function updateCapacity() {
     const socia = document.getElementById('sociaProdutora').value;
     const receitaId = document.getElementById('receitaId').value;
@@ -126,28 +128,52 @@ function updateCapacity() {
                 if (data.receitas > 0) {
                     capacidadeDetalhes.innerHTML = `
                         <p class="mb-0">
-                            <strong>Máximo possível: ${data.receitas} receitas = ${data.balas} balas</strong>
+                            <strong>${data.receitas} receitas = ${data.balas} balas</strong>
                         </p>
                     `;
-                    capacidadeInfo.style.display = 'block';
+                    capacidadeInfo.classList.remove('alert-warning'); // Remove classe de erro
+                    capacidadeInfo.classList.add('alert-info'); // Adiciona classe de info
                     document.getElementById('receitasProduzir').max = data.receitas;
                 } else {
                     capacidadeDetalhes.innerHTML = `
-                        <p class="mb-0 text-warning">
+                        <p class="mb-0">
                             <strong>Estoque insuficiente para produção</strong>
                         </p>
                     `;
-                    capacidadeInfo.style.display = 'block';
+                    capacidadeInfo.classList.remove('alert-info'); // Remove classe de info
+                    capacidadeInfo.classList.add('alert-warning'); // Adiciona classe de aviso
                     document.getElementById('receitasProduzir').max = 0;
                 }
+                capacidadeInfo.style.display = 'block';
+                
+                // Atualiza o resultado de balas após a capacidade ser atualizada
+                updateBalasResultado(); 
             })
             .catch(error => {
                 console.error('Error fetching capacity:', error);
                 capacidadeInfo.style.display = 'none';
+                updateBalasResultado(); // Limpa o resultado se der erro na API
             });
     } else {
         capacidadeInfo.style.display = 'none';
+        updateBalasResultado(); // Limpa o resultado se nada estiver selecionado
     }
 }
+
+// Adiciona listeners para os campos que afetam o cálculo e a capacidade
+document.getElementById('sociaProdutora').addEventListener('change', updateCapacity);
+document.getElementById('receitaId').addEventListener('change', updateCapacity);
+document.getElementById('receitasProduzir').addEventListener('input', updateBalasResultado); // Para atualizar em tempo real
+
+// Dispara os eventos na carga da página para definir o estado inicial
+document.addEventListener('DOMContentLoaded', function() {
+    // Para pré-selecionar a receita padrão se existir (você precisaria passar o ID da padrão no GET request)
+    // Se a receita padrão já vem selecionada ao carregar a página:
+    // const receitaPadraoId = "{{ receita_padrao.id if receita_padrao else '' }}";
+    // if (receitaPadraoId) {
+    //     document.getElementById('receitaId').value = receitaPadraoId;
+    // }
+    updateCapacity(); // Inicializa a capacidade e o resultado de balas na carga da página
+});
 </script>
 {% endblock %}

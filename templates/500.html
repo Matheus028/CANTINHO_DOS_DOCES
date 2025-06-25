@@ -1,24 +1,9 @@
 {% extends "base.html" %}
-
-{% block title %}Erro do Servidor{% endblock %}
-
+{% block title %}Erro Interno do Servidor{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card bg-dark border-danger">
-                <div class="card-body text-center">
-                    <i class="fas fa-exclamation-triangle text-danger mb-3" style="font-size: 3rem;"></i>
-                    <h3 class="card-title text-light">Erro Interno do Servidor</h3>
-                    <p class="card-text text-muted">
-                        Ocorreu um erro inesperado. Nossa equipe foi notificada.
-                    </p>
-                    <a href="{{ url_for('index') }}" class="btn btn-primary">
-                        <i class="fas fa-home"></i> Voltar ao Início
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="container mt-5 text-center">
+    <h1>500 - Erro Interno do Servidor</h1>
+    <p>Ocorreu um erro inesperado no servidor. Por favor, tente novamente mais tarde.</p>
+    <p><a href="{{ url_for('index') }}" class="btn btn-primary">Voltar para o Dashboard</a></p>
 </div>
 {% endblock %}
