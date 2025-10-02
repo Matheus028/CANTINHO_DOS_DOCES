@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    container_name: flask_balas
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./config/web.env
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  db:
+    image: postgres:15
+    container_name: postgres_balas
+    restart: always
+    environment:
+      POSTGRES_USER: balas_user
+      POSTGRES_PASSWORD: balas_pass
+      POSTGRES_DB: balas_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+volumes:
+  db_data:
+
+networks:
+  backend:
